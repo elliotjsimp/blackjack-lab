@@ -15,12 +15,17 @@ class Session:
     
     def play_session(self):
         while True:
-            result = Round(self.players, self.shoe, self.interactive).play_round()
+            if not self.players: 
+                if not self.interactive: print(f"No strategy made it {self.n_rounds} rounds!")
+                break
+            result = Round(self.players, self.shoe, self.round_number, self.interactive).play_round()
             if result == "stop_session":
                 print("Debug: Human player is out of bankroll. Ending session.")
                 break
             self.round_number += 1
             if not self.interactive and self.round_number > self.n_rounds:
+                for p in self.players:
+                    print(f"{p.name} finished with ${p.bankroll}")
                 break
         
         # TODO

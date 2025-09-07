@@ -3,14 +3,15 @@ from messages import Messages
 from session import Session
 from player import Player, Players, HumanStrategy
 
-MAX_ROUNDS = 100000
+MAX_ROUNDS = 10000000
 
 if __name__ == "__main__":
-    Manager.print_banner(Messages.WELCOME_MESSAGE)
-    start_choice = Manager.handle_input(Messages.START_CHOICE_MESSAGE, choices=["play", "sim"])
+    print(Messages.ASCII_TITLE)
+    print(f"\n{Messages.WELCOME_MESSAGE}")
+    start_choice = Manager.handle_input(Messages.START_CHOICE_MESSAGE, choices=["play", "sim"], input_type=str)
 
     if start_choice == "play":
-        name = Manager.handle_input(Messages.NAME_REQUEST)
+        name = Manager.handle_input(Messages.NAME_REQUEST, input_type=str, is_name=True)
         Players.ROSTER.append(Player(name, HumanStrategy()))
         session = Session(Players.ROSTER)
         session.play_session()

@@ -6,7 +6,7 @@ class Card:
         self.suit = suit  # e.g., "Hearts", "Spades"
 
     def __repr__(self):
-        return f"{self.rank} of {self.suit}"
+        return f"{self.rank}{self.suit}"
 
     @property
     def value(self):
@@ -32,10 +32,19 @@ class Deck:
 
 def hand_total(hand: list[Card]) -> int:
     """Compute hand value considering Aces as 1 or 11."""
-    total = sum(min(10, c.value) for c in hand)
-    aces = sum(1 for c in hand if c.rank == 'A')
-    while aces and total + 10 <= 21:
-        total += 10
-        aces -= 1
+    total = 0
+    ace_count = 0
+
+    for card in hand: 
+        if card.rank == "A":
+            total += 11
+            ace_count += 1
+        else:
+            total += card.value
+
+    while total > 21 and ace_count > 0:
+        total -= 10
+        ace_count -= 1
+
     return total
 

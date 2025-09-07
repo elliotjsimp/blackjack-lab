@@ -14,35 +14,41 @@ class Strategy(ABC):
 
 
 class RandomStrategy(Strategy):
-    """Random, but rational. Stands at 21."""
+    """Random choice (but stands at 21)."""
     def make_decision(self, hand: list[Card], dealer_upcard, **kwargs) -> str:
-        # Not worth simulating complete irrationality. Need to stand at 21.
-        if hand_total(hand) == 21:
-            return 'stand'
-        return random.choice(['hit', 'stand'])
+        return "stand" if hand_total(hand) == 21 else random.choice(['hit', 'stand'])
 
     def make_bet(self, bankroll: int, **kwargs) -> int:
         # Random bet between 10% and 25% of bankroll
-        return max(1, int(bankroll * random.uniform(0.1, 0.25))) // 1
+        return max(1, int(bankroll * random.uniform(0.1, 0.25) // 1))
 
 
-class RationalNaiveStrategy(Strategy):
+class RationalStrategy(Strategy):
     """Follows dealer logic, stands at 17 or more."""
     def make_decision(self, hand: list[Card], dealer_upcard, **kwargs) -> str:
         if hand_total(hand) < 17:
             return 'hit'
         return 'stand'
     def make_bet(self, bankroll: int, **kwargs) -> int:
-        return bankroll * 0.15 // 1 # Bets 15% of bankroll (my arbitrary choice)
-    
+        return max(1, int(bankroll * 0.20 // 1)) # Bets 20% of bankroll
+
+
+class RationalOptimistStrategy(RationalStrategy):
+    """Behaves like RationalStrategy but bets more aggressively."""
+    def make_bet(self, bankroll: int, **kwargs) -> int:
+        # Bets 50% of bankroll
+        return max(1, int(bankroll * 0.5 // 1))
 
 
 class HumanStrategy(Strategy):
-    """HumanStrategy... the fate of the game is left in your mortal hands!"""
+    """HumanStrategy... the fate of the game is left in your mortal hands! But forced to stand at 21."""
     def make_decision(self, hand: list[Card], dealer_upcard, **kwargs) -> str:
+        if hand_total(hand) == 21:
+            return "stand"
         return Manager.handle_input(
             message=f"Your hand: {hand} (Score: {hand_total(hand)}), dealer shows {dealer_upcard}. Hit or stand? ",
-            choices=["hit", "stand"]
+            choices=["hit", "stand"],
+            input_type=str
         )
 
     def make_bet(self, bankroll: int, **kwargs) -> int:
@@ -52,6 +58,7 @@ class HumanStrategy(Strategy):
             validator=lambda x: 0 < x <= bankroll,
             invalid_message="That wasn't a valid bet."
         )
+
 
 
 class Player:
@@ -72,9 +79,9 @@ class Player:
 
 class Players:
     ROSTER = [
-        Player("Random1", RandomStrategy()),
-        Player("Random2", RandomStrategy()),
-        Player("Rational", RationalNaiveStrategy())
+        Player("Random", RandomStrategy()),
+        Player("Rational", RationalStrategy()),
+        Player("Believer", RationalOptimistStrategy())
     ]
 
 
