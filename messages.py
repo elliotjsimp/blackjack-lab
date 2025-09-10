@@ -3,18 +3,25 @@ class Messages:
     "quit",
     "exit",
     "q",
-    "stop"
-]
+    "stop",
+    "cutitout",
+    "enoughalready",
+    "iwanttodosomethingelse",
+    "idontwanttoplaywithyouanymore" # "Toy Story" Reference, LOL
+    ]
 
     ERROR_MESSAGE = "Sorry, that wasn't a valid input."
+
     START_CHOICE_MESSAGE = """You can:
   - Play a game (play)
   - Run a simulation (sim)
   - Quit at any time (quit)
 """
+
     WELCOME_MESSAGE = "Welcome to Blackjack Lab! I hope fate is on your side..."
     N_ROUNDS = "Select a number of rounds to simulate: "
     NAME_REQUEST = "What's your name: "
+
     ASCII_TITLE = r"""
 ▀█████████▄$$$▄█$$$$$$$$$$▄████████$$▄████████$$$$▄█$$$▄█▄$$$$$$▄█$$$$▄████████$$▄████████$$$$▄█$$$▄█▄$$$$$$$▄█$$$$$$$$$$▄████████$▀█████████▄
   ███$$$$███$███$$$$$$$$$███$$$$███$███$$$$███$$$███$▄███▀$$$$$███$$$███$$$$███$███$$$$███$$$███$▄███▀$$$$$$███$$$$$$$$$███$$$$███$$$███$$$$███
@@ -24,3 +31,5 @@ class Messages:
   ███$$$$██▄$███$$$$$$$$$███$$$$███$███$$$$█▄$$$$███▐██▄$$$$$$$███$$$███$$$$███$███$$$$█▄$$$$███▐██▄$$$$$$$$███$$$$$$$$$███$$$$███$$$███$$$$██▄
   ███$$$$███$███▌$$$$▄$$$███$$$$███$███$$$$███$$$███$▀███▄$$$$$███$$$███$$$$███$███$$$$███$$$███$▀███▄$$$$$$███▌$$$$▄$$$███$$$$███$$$███$$$$███
 ▄█████████▀$$█████▄▄██$$$███$$$$█▀$$████████▀$$$$███$$$▀█▀$█▄▄▄███$$$███$$$$█▀$$████████▀$$$$███$$$▀█▀$$$$$$█████▄▄██$$$███$$$$█▀$$▄█████████▀"""
+
+# TODO: add some "Dealer Message" dict with array values, so we could print random dealer messages for scenarios. Like a text based RPG or something.

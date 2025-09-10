@@ -7,6 +7,10 @@ class Card:
 
     def __repr__(self):
         return f"{self.rank}{self.suit}"
+    
+    # NOTE:
+    # __str__() would maybe be fully worded then, i.e., "Four of Diamonds".
+    # IDK what the value of this would be though, unless for some type of GUI.
 
     @property
     def value(self):

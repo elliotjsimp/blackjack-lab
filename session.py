@@ -20,7 +20,7 @@ class Session:
                 break
             result = Round(self.players, self.shoe, self.round_number, self.interactive).play_round()
             if result == "stop_session":
-                print("Debug: Human player is out of bankroll. Ending session.")
+                # print("Debug: Human player is out of bankroll. Ending session.")
                 break
             self.round_number += 1
             if not self.interactive and self.round_number > self.n_rounds:

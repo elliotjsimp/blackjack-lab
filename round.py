@@ -3,11 +3,10 @@ from manager import Manager
 from shoe import Shoe
 from deck import Card, hand_total
 
-BANNER_LEN = 40 # amount of "=" that prints is for per-round print methods is multiplied by this constant
+BANNER_LEN = 45 # amount of "=" that prints is multiplied by this constant (for per-round print methods)
 
 class Round:
     """Defines a single Blackjack round."""
-    
 
     def __init__(self, players: list[Player], shoe: Shoe, round_number: int, interactive: bool):
         self.players = players
@@ -17,39 +16,34 @@ class Round:
         self.dealer_hand: list[Card] = []
 
         # This is probably not best decision but fine for now...
-        # Whatever is best for performance for large `n_rounds` in session (for data analysis) is what should be implemented in the future...
+        # Whatever is best for performance for large `n_rounds` in session (for data analysis) is what should probably be implemented in the future...
         self.decisions = {player: [] for player in self.players}
 
     def play_round(self):
-        
+        """Handles core round logic. I've tried to provide an ample amount of comments, mainly
+        for people who may not know how Blackjack works."""
+
         # --- Removal Check ---
-        for player in self.players[:]:  # iterate over a shallow copy
+        for player in self.players[:]: # Create shallow copy so we can iterate and remove safely at same time
             if player.bankroll <= 0:
                 print(f"\n{player.name} was removed from the game for having no bankroll left!")
-                if isinstance(player.strategy, HumanStrategy): # Not (yet?) designed for multiple humans
-                    print(f"That means you, {player.name}... get your strategy down, then show everyone what you're made of!")
+                if isinstance(player.strategy, HumanStrategy): # Not designed for multiple humans, therefore quit
+                    print(f"That means you, {player.name}... get your strategy down, then show everyone at the tables what you're made of!\n")
                     return "stop_session"
                 self.players.remove(player)
 
-
+        # --- Take Bets ---
         for player in self.players:
             player.current_bet = player.make_bet()
         
-        # Not putting show_spinner calls in the associated function
-        # Wanting in play_round for now.
-        if self.interactive: 
-            Manager.show_spinner()
-            self.print_bets()
+        self.print_bets()
 
         # --- Initial deal ---
         for player in self.players:
             player.hand = [self.shoe.deal_card(), self.shoe.deal_card()]
         self.dealer_hand = [self.shoe.deal_card(), self.shoe.deal_card()]
 
-        if self.interactive:
-            Manager.show_spinner(1.0) # a bit more delay
-            self.print_initial_deal()
-
+        self.print_initial_deal()
 
         # --- Check for natural Blackjack's (auto-win) ---
         dealer_total = hand_total(self.dealer_hand)
@@ -57,7 +51,8 @@ class Round:
             player_total = hand_total(player.hand)
             if player_total == 21:
                 if dealer_total == 21:
-                    # Push Blackjack (wow!) (NOTE: might not be exact right term, should ensure)
+                    # Push Blackjack 
+                    # NOTE: might not be exact right Blackjack term, should ensure.
                     self.decisions[player].append("push blackjack")
                 else:
                     # Blackjack, Player wins 1.5× bet
@@ -67,20 +62,16 @@ class Round:
 
         # --- Player turns ---
         for player in self.players:
-            if isinstance(player.strategy, HumanStrategy):
-                # double check... never know! (logicially equivalent statements)
-                if self.interactive:
-                    Manager.show_spinner(1.0) # a bit more delay
-                    self.print_table_moves()
+            # This works because human is always at last index of players/last "seat", therefore table is ready to print.
+            # This is generally prefered by IRL card-counters (if they play at a table with other people, that is).
+            if isinstance(player.strategy, HumanStrategy): self.print_table_moves()
 
             while True:
-                # if self.interactive: print(f"{player.name}'s hand: {player.hand} (Total: {hand_total(player.hand)})")
-
                 if player.current_bet > 0:
-                    decision = player.make_decision(self.dealer_hand[0]) # dealer upcard passed as argument
+                    decision = player.make_decision(self.dealer_hand[0]) # Dealer upcard passed as argument
                     self.decisions[player].append(decision)
 
-                    if decision == "hit":
+                    if decision in ["hit", "h"]:
                         player.hand.append(self.shoe.deal_card())
 
                         if hand_total(player.hand) > 21:
@@ -89,105 +80,145 @@ class Round:
                             player.bankroll -= player.current_bet
                             player.current_bet = 0
                             break
-                    elif decision == "stand":
+                    elif decision in ["stand", "s"]:
                         break
-                else:
-                    break
+                    elif decision in ["double", "d"]: # doubling in Blackjack is effectively double bet, then hit.
+                        if player.current_bet * 2 > player.bankroll:
+                            if self.interactive: print("You don't have the chips for that! Choose another option, big spender...")
+                            continue    # TODO: Make it so strategies that always double won't get messed up
+                                        # Either make so auto hit or rest of chips
+                                        # Would be better if just we actually took the chips from user when they bet
+                                        # Instead of modifying bankroll in "resolve" bets
+                                        # Which I guess technichally isn't resolving...
+                            
+                        player.current_bet *= 2
 
-        
-        
+                        if isinstance(player.strategy, HumanStrategy):
+                            print(f"You doubled your bet to ${player.current_bet}...")
+
+                        player.hand.append(self.shoe.deal_card())
+
+                        if hand_total(player.hand) > 21:
+                            self.decisions[player].append("bust")
+
+                            player.bankroll -= player.current_bet
+                            player.current_bet = 0
+                            break
+
+                else:
+                    break   # For players in for loop who have hit Blackjack (push or not),
+                            # The "dealer" (else break code) forces them to be rational in these cases, and not play.
+                            # We could apend "stand" here, but would be messy in tables/data.
+                
+
+
 
         # --- Dealer turn ---
-        if self.interactive: print(f"\nDealer's full hand: {self.dealer_hand} (Total: {hand_total(self.dealer_hand)})")
-        dealer_total = hand_total(self.dealer_hand)
-        
-        # Casino convention: dealers stand at 17 (have different rules for if it's a soft 17 or not ("soft" == with an Ace))
+        dealer_total = hand_total(self.dealer_hand) # TODO: Why calling twice? Messy. Fix.
+
+        # Casino Convention: most dealers stand at 17 (soft or hard).
         while dealer_total < 17:
             self.dealer_hand.append(self.shoe.deal_card())
             dealer_total = hand_total(self.dealer_hand)
             # if self.interactive: print(f"Dealer hits: {self.dealer_hand} (Total: {dealer_total})")
+
         
+        if self.interactive: print(f"\nDealer's full hand: {self.dealer_hand} (Total: {hand_total(self.dealer_hand)})\n")
+
         # --- Resolve bets ---
+        # NOTE: Technichally, we are more like finalizing bankroll adjustments.
+        # Semantic difference, but it would be better perhaps if we directly modified
+        # player bankroll at start of round (when bet occurs).
+
         for player in self.players:
-            if player.current_bet == 0:
-                if self.interactive: print(f"{player.name} busted!")
-                continue  # already busted
             player_total = hand_total(player.hand)
-            if dealer_total > 21 or player_total > dealer_total:
-                player.bankroll += player.current_bet  # player wins
+            if player.current_bet <= 0: # overloaded logically. Implementation Debt.
+                
+                # These are the cases where no current bet
+                # Therefore could be be bust, blackjack, or push blackjack
+                # Kind of managing Implementation Debt here :(
+
+                if self.interactive:
+                    match(self.decisions[player][-1]):
+                        case "bust":
+                            print(f"{player.name} busted! (Total: {player_total})") 
+                        case "blackjack":
+                            print(f"{player.name} got a Blackjack! They got a 3:2 return on their bet.")
+                        case "push blackjack":
+                            print(f"{player.name} and the Dealer both hit a Blackjack! That's quite rare.")
+
+                continue
+
+            elif dealer_total > 21 or player_total > dealer_total:
+                player.bankroll += player.current_bet # Player wins
                 result = "wins"
             elif player_total == dealer_total:
                 result = "push"
             else:
-                player.bankroll -= player.current_bet  # player loses
+                player.bankroll -= player.current_bet # Player loses
                 result = "loses"
-            if self.interactive: print(f"{player.name} {result} (Dealer: {self.dealer_hand})")
+
+            # TODO: Implement table print method instead of this placeholder.
+            if self.interactive: print(f"{player.name} {result} ${player.current_bet} (Total: {player_total})")
             player.current_bet = 0
 
         # --- Recycle shoe if using CSM ---
         self.shoe.csm_recycle()
 
 
-    # Please forgive my not DRY implementation of these print methods
-    def print_bets(self):
+    # Please forgive my non-DRY (wet, if you will) implementations of the following print methods:
+    def print_bets(self) -> None:
+        """"""
+        if not self.interactive: return None
+        Manager.show_spinner()
         print("\n","="*BANNER_LEN, sep="")
         print(f"Round {self.round_number} Bets")
         print("="*BANNER_LEN)
-        
-        print("\nPlayer     | Bet    | Bankroll")
-        print("-----------+--------+---------")
+        print("\nPlayer     | Bet          | Bankroll") 
+        print("-----------+--------------+----------")
         for player in self.players:
-            print(f"{player.name:<10} | {player.current_bet:>6} | {player.bankroll:>7}")
+            print(f"{player.name:<10} | {f'${player.current_bet}':>12} | {f'${player.bankroll}'}")
 
 
-    def print_initial_deal(self):
+    def print_initial_deal(self) -> None:
+        """Prints the initial deal table, with the dealer upcard."""
+        if not self.interactive: return None
+        Manager.show_spinner(0.8) # Slightly longer
+
         print("\n","="*BANNER_LEN, sep="")
         print("Initial Deal")
         print("="*BANNER_LEN)
-
-        print(f"\nDealer Shows {self.dealer_hand[0]}")
-
+        print(f"\nDealer Shows {self.dealer_hand[0]}") # Dealer upcard
         print("\nPlayer     | Hand              | Total") 
         print("-----------+-------------------+-------")
 
         for player in self.players:
             hand_str = ", ".join(str(card) for card in player.hand)
-            print(f"{player.name:<10} | {hand_str:<17} | {hand_total(player.hand):<2}")
+            print(f"{player.name:<10} | {hand_str:<17} | {hand_total(player.hand)}")
+
     
     # TODO: Normalize naming convention project-wide (move vs decision... which?)
-    def print_table_moves(self):
+    def print_table_moves(self) -> None:
         """Prints the turns of all other players in order. To be used before HumanStrategy needs to make decision.""" # TODO: Make docstring more clear LOL
-        if len(self.players) <= 1: return None # if only HumanStrategy in self.players (ROSTER is hardcoded right now though).
+        if not self.interactive: return None
+        Manager.show_spinner(0.8) # Slightly longer
 
+        if len(self.players) <= 1: return None # if only HumanStrategy in self.players (ROSTER is hardcoded right now though).
         print("\n","="*BANNER_LEN, sep="")
         print("Table Moves") # TODO: Need better, more Blackjack native, titles where applicable, like here.
         print("="*BANNER_LEN)
+        # TODO: Make it so the table width expands if needed to accomodate a player's big hand. Therefore won't need to be so ugly-wide by default.
+        print("\nPlayer     | Hand                      | Move(s)")
+        print("-----------+---------------------------+----------")
 
-        print("\nPlayer     | Hand              | Move(s)")
-        print("-----------+-------------------+-------") # TODO: Adapt table width to what looks good for the result text
-
-        # NOTE: This works because HumanStrategy Player (the user) is always at the last "seat" (index) of the players list
-        # IRL Card-counters prefer this, or just playing 1-on-1 with the dealer.
-        # Therefore, we might as well have user at last index, therefore this is fine.
-
-
-        # NOTE: Shows table turns, not results. That will happen after
-        # I guess will actually show BUST too...
         for player in self.players:
-
-            # if isinstance(p.strategy, HumanStrategy): return None
-
             hand_str = ", ".join(str(card) for card in player.hand)
-            # What will print for player decision(s) if natural Blackjack? What about if they reach 21?
-            # Because I kind of force them to stop... but is that handled in strategy? I hope..
-            # `decision` is each str in array as the value of decisions dict, with Player object as key.
 
-            decisions_str = ", ".join(d.upper() for d in self.decisions[player]) # SHOW ALL
-            # decisions_str = self.decisions[p][-1].upper() # SHOW LAST
+            # `d` is each str in array of str's as the value of decisions dict, with Player object as key.
+            decisions_str = ", ".join(d.upper() for d in self.decisions[player])
 
-            # NOTE: could not print STAND if that's the last one in decision_str (because redundant?)
-            #if isinstance(plz)
-            print(f"{player.name:<10} | {hand_str:<17} | {decisions_str}")
+            # NOTE: I could not print STAND if that's the last dedecision in decision_str (because redundant)
+            print(f"{player.name:<10} | {hand_str:<19}       | {decisions_str}")
 
 
     def print_round_results(self):

@@ -30,13 +30,13 @@ class Manager:
 
     @staticmethod
     def handle_input(
-        message: str,
-        *,                         # Force pass by keyword for following
-        choices: list[str] = None, # For string input choices
-        input_type: type,    
-        validator=None,            # Only used for valid range of int lambda function
-        invalid_message: str = None,
-        is_name: bool = False      # Somewhat band-aid solution to get actual casing of name input 
+        message: str,                   # Message to show for input
+        *,                              # Force pass by keyword for following:
+        choices: list[str] = None,      # Optional: For string input choices
+        input_type: type,               # The valid input type for this call
+        validator=None,                 # Optional: Only used for valid range of int lambda function currently.
+        invalid_message: str = None,    # Optional: Message to be printed if validator false, or not in choices.
+        is_name: bool = False           # Somewhat Band-Aid solution to get actual casing of name input, but works.
     ):
         """
         Generalized input handler.
@@ -57,32 +57,32 @@ class Manager:
             # If expecting string input, reject numeric-looking entries up front
             if input_type is str:
                 try:
-                    float(raw)  # Succeeds if numeric-like
+                    float(raw) # Succeeds if numeric-like
                     print("Invalid input type.")
                     continue
                 except ValueError:
-                    pass  # Therefore not numeric so all good
+                    pass # Therefore not numeric so all good
 
-            # Now attempt to cast into the expected type
             try:
-                value = input_type(raw)
+                value = input_type(raw) # Now attempt to cast into the expected type
             except ValueError:
                 print("Invalid input type.")
                 continue
-
+            
+            # Check if in choices
             if choices and (lower_raw not in [c.lower() for c in choices]):
-                print("Choice not in allowed options.")
+                print(invalid_message) # W
                 continue
-
-            if validator and not validator(value):
+            
+            # Currently only used for range check to get n_rounds in main.py, when start_choice is sim
+            if validator and not validator(value): # Using lambda function
                 print(invalid_message)
                 continue
 
+            # Show spinner (fake loading) before input is returned
+            Manager.show_spinner()
+
             if input_type is str:
-                # So we don't return lower for HumanStrategy Player name (i.e. the user, LOL)
-                # This probably isn't the best solution in the world but all good
-                Manager.show_spinner()
+                # So we don't return lower for HumanStrategy Player name (i.e., the user, LOL)
                 return raw if is_name else lower_raw 
-            else:
-                Manager.show_spinner()
-                return value
+            return value

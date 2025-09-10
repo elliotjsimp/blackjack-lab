@@ -6,28 +6,38 @@ from player import Player, Players, HumanStrategy
 MAX_ROUNDS = 10000000
 
 if __name__ == "__main__":
-    print(Messages.ASCII_TITLE)
-    print(f"\n{Messages.WELCOME_MESSAGE}")
-    start_choice = Manager.handle_input(Messages.START_CHOICE_MESSAGE, choices=["play", "sim"], input_type=str)
 
-    if start_choice == "play":
-        name = Manager.handle_input(Messages.NAME_REQUEST, input_type=str, is_name=True)
-        Players.ROSTER.append(Player(name, HumanStrategy()))
+    print(Messages.ASCII_TITLE)
+
+    print(f"\n\033[3m{Messages.WELCOME_MESSAGE}\033[23m") # ANSI Escape Code for italics 
+
+    # print(f"\n{Messages.WELCOME_MESSAGE}")
+    start_choice = Manager.handle_input(
+        Messages.START_CHOICE_MESSAGE, 
+        choices=["play", "game", "sim"], 
+        input_type=str, 
+        invalid_message="That wasn't one of the choices.")
+
+    if start_choice in ["play", "game"]:
+        name = Manager.handle_input(
+            Messages.NAME_REQUEST, 
+            input_type=str,      
+            is_name=True)
+        
+        Players.ROSTER.append(Player(name, HumanStrategy())) # Human always at last "seat" of "table"
         session = Session(Players.ROSTER)
         session.play_session()
 
-    elif start_choice == "sim":
-
+    else: # start_choice == "sim"
         n_rounds = Manager.handle_input(
             Messages.N_ROUNDS, 
             input_type=int, 
-            validator=lambda x: 1<=x<=100000, 
+            validator=lambda x: 1<=x<=MAX_ROUNDS,
             invalid_message=f"Please choose a number between 1 and {MAX_ROUNDS}")
         
         session = Session(Players.ROSTER, n_rounds)
         session.play_session()
-    else:
-        print("Something messed up!")
+
 
 
     
