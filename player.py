@@ -9,6 +9,46 @@ import random
 from manager import Manager
 from deck import Card, hand_total
 from abc import ABC, abstractmethod
+import csv
+
+# Used to convert from CSV move to game move (so printed tables don't have letters, 
+# even though they are valid for humans to type as moves for convenience).
+SHORT_TO_LONG = {
+    "H":"hit",
+    "S":"stand",
+    "D":"double",
+    "Ds":"double",   # allowed to double is true, therefore double
+    "Y": "split",    # UNIMPLEMENTED
+    "N": "no_split"  # UNIMPLEMENTED
+}
+
+
+hard_totals_path="hard_totals.csv"
+soft_totals_path="soft_totals.csv"
+hard_totals = {}
+soft_totals = {}
+
+# Load hard totals
+with open(hard_totals_path) as htp:
+    reader = csv.DictReader(htp)
+    for row in reader:
+        key = row["Player Total"].strip()  # strip spaces
+        hard_totals[key] = {dealer.strip(): row[dealer].strip() for dealer in row if dealer != "Player Total"}
+
+# Load soft totals
+with open(soft_totals_path) as stp:
+    reader = csv.DictReader(stp)
+    for row in reader:
+        key = row["Player Total"].strip()
+        soft_totals[key] = {dealer.strip(): row[dealer].strip() for dealer in row if dealer != "Player Total"}
+
+def dealer_key(card: Card):
+    if card.rank in ["J", "Q", "K"]:
+        return "10"
+    elif card.rank == "A":
+        return "A"
+    else:
+        return card.rank
 
 
 class Player:
@@ -94,34 +134,47 @@ class HumanStrategy(Strategy):
             invalid_message="That wasn't a valid bet.")
     
 
-    class BasicStrategy(Strategy):
-        """Note that "Basic Strategy" is a specific Blackjack strategy that makes the best move based on dealer upcard and their own hand total."""
-        def make_decision(self, player, dealer_upcard) -> str:
-            if hand_total(player.hand) >= 17:
-                return "stand"
-            
-            # TODO: Make soft/hard bool csv tables, and accompanying logic.
-            for card in player.hand:
-                if card.rank == "A": # soft
-                    return None
-                raise NotImplementedError # use soft-total decision table
-            else:
-                raise NotImplementedError # use hard-total decision table
-            
-        def make_bet(self, player):
-            raise NotImplementedError
+class BasicStrategy(Strategy):
+    """Note that "Basic Strategy" is a specific Blackjack strategy that makes the best move based on dealer upcard and their own hand total."""
+    def make_decision(self, player, dealer_upcard) -> str:
+        h_total = hand_total(player.hand)
+        if h_total >= 20: return "stand"
+        if h_total < 8: return "hit"
+
+        if any(c.rank == "A" for c in player.hand) and len(player.hand) == 2:
+            # Find the non-ace card
+            try:
+                other = next(c for c in player.hand if c.rank != "A")
+            except StopIteration:
+                return "hit"
+
+            soft_total_repr = "A" + str(other.value)
+                
+            short = soft_totals[soft_total_repr][dealer_key(dealer_upcard)]
+            return SHORT_TO_LONG[short]
+        else:
+            dk = dealer_key(dealer_upcard)
+            row_key = "17+" if h_total >= 17 else str(h_total)
+            # print(f"DEBUG: row_key={row_key}, dealer_key={dk}, available keys={list(hard_totals[row_key].keys())}")
+            short = hard_totals[row_key][dk] # TODO: make method to convert from letter to work
+            return SHORT_TO_LONG[short]
+        
+    def make_bet(self, player):
+        return max(1, int(player.bankroll * 0.002 // 1)) # Bets 10% of bankroll for now
 
 
 class Players:
-    ROSTER = [
-        Player("Random", RandomStrategy()),
-        Player("Rational", RationalStrategy()),
-        Player("Doubler", DoublerStrategy())
-    ]
+    # ROSTER = [
+    #     Player("The Pro", BasicStrategy()),
+    #     Player("Rational", RationalStrategy()),
+    #     Player("Doubler", DoublerStrategy())
+    # ]
 
     # ROSTER = []
 
-
+    ROSTER = [
+        Player("The Pro", BasicStrategy(), bankroll=1000),
+    ]
 
 
 

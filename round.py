@@ -159,7 +159,9 @@ class Round:
                 result = "loses"
 
             # TODO: Implement table print method instead of this placeholder.
-            if self.interactive: print(f"{player.name} {result} ${player.current_bet} (Total: {player_total})")
+            # if self.interactive: print(f"{player.name} {result} ${player.current_bet} (Total: {player_total})")
+            print(f"{player.name} {result} ${player.current_bet} (Total: {player_total})")
+
             player.current_bet = 0
 
         # --- Recycle shoe if using CSM ---
