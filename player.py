@@ -164,17 +164,17 @@ class BasicStrategy(Strategy):
 
 
 class Players:
-    # ROSTER = [
-    #     Player("The Pro", BasicStrategy()),
-    #     Player("Rational", RationalStrategy()),
-    #     Player("Doubler", DoublerStrategy())
-    # ]
+    ROSTER = [
+        Player("The Pro", BasicStrategy()),
+        Player("Rational", RationalStrategy()),
+        Player("Doubler", DoublerStrategy())
+    ]
 
     # ROSTER = []
 
-    ROSTER = [
-        Player("The Pro", BasicStrategy(), bankroll=1000),
-    ]
+    # ROSTER = [
+    #     Player("The Pro", BasicStrategy(), bankroll=1000),
+    # ]
 
 
 

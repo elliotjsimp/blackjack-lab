@@ -176,10 +176,10 @@ class Round:
         print("\n","="*BANNER_LEN, sep="")
         print(f"Round {self.round_number} Bets")
         print("="*BANNER_LEN)
-        print("\nPlayer     | Bet          | Bankroll") 
-        print("-----------+--------------+----------")
+        print("\nPlayer     | Bet          | New Bankroll") 
+        print("-----------+--------------+--------------")
         for player in self.players:
-            print(f"{player.name:<10} | {f'${player.current_bet}':>12} | {f'${player.bankroll}'}")
+            print(f"{player.name:<10} | {f'${player.current_bet}':>12} | ${player.bankroll-player.current_bet}")
 
 
     def print_initial_deal(self) -> None:
@@ -211,7 +211,7 @@ class Round:
         print("="*BANNER_LEN)
         # TODO: Make it so the table width expands if needed to accomodate a player's big hand. Therefore won't need to be so ugly-wide by default.
         print("\nPlayer     | Hand                      | Move(s)")
-        print("-----------+---------------------------+----------")
+        print("-----------+---------------------------+---------")
 
         for player in self.players:
             hand_str = ", ".join(str(card) for card in player.hand)
