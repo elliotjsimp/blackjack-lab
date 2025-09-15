@@ -64,6 +64,9 @@ class Player:
     
     def make_bet(self) -> int:
         return self.strategy.make_bet(self)
+    
+    def valid_double(self) -> bool:
+        return self.bankroll >= self.current_bet * 2
 
 
 class Strategy(ABC):
@@ -109,7 +112,7 @@ class DoublerStrategy(Strategy):
     """Double instead of hit, every time."""
     def make_decision(self, player, dealer_upcard) -> str:
         if hand_total(player.hand) < 17:
-            return "double" if player.bankroll >= player.current_bet * 2 else "hit" # NOTE: QUICK FIX. SHOULD HANDLE IN ROUND.
+            return "double" if player.valid_double() else "hit"
         return "stand"
     def make_bet(self, player) -> int:
         return max(1, int(player.bankroll * 0.20 // 1)) # Bets 20% of bankroll
@@ -120,9 +123,14 @@ class HumanStrategy(Strategy):
     def make_decision(self, player, dealer_upcard) -> str:
         if hand_total(player.hand) == 21: return "stand" # Force stand by "dealer"
         
+        if player.valid_double():
+            choices = ["hit", "h", "stand", "s", "double", "d"] # did it this way because I was concerend about appending... I could fix probably.
+        else:
+            choices = ["hit", "h", "stand", "s"]
+    
         return Manager.handle_input(
             message=f"Your hand: {player.hand} (Score: {hand_total(player.hand)}), dealer shows {dealer_upcard}. Hit, stand or double? ",
-            choices=["hit", "h", "stand", "s", "double", "d"],
+            choices=choices,
             input_type=str,
             invalid_message="That wasn't a valid play.")
 
@@ -141,22 +149,24 @@ class BasicStrategy(Strategy):
         if h_total >= 20: return "stand"
         if h_total < 8: return "hit"
 
+        dk = dealer_key(dealer_upcard)
+
+        # If soft hand
         if any(c.rank == "A" for c in player.hand) and len(player.hand) == 2:
             # Find the non-ace card
-            try:
-                other = next(c for c in player.hand if c.rank != "A")
+            try: # TODO: Make less convoluted.
+                other_card = next(c for c in player.hand if c.rank != "A")
             except StopIteration:
-                return "hit"
+                return "hit" # Always split on two aces
 
-            soft_total_repr = "A" + str(other.value)
-                
-            short = soft_totals[soft_total_repr][dealer_key(dealer_upcard)]
+            # Because the CSV is more readable as just short values (i.e., "H", "D")
+            # But this looks bad in CLI.
+            soft_total_repr = "A" + str(other_card.value)
+            short = soft_totals[soft_total_repr][dk]
             return SHORT_TO_LONG[short]
         else:
-            dk = dealer_key(dealer_upcard)
             row_key = "17+" if h_total >= 17 else str(h_total)
-            # print(f"DEBUG: row_key={row_key}, dealer_key={dk}, available keys={list(hard_totals[row_key].keys())}")
-            short = hard_totals[row_key][dk] # TODO: make method to convert from letter to work
+            short = hard_totals[row_key][dk]
             return SHORT_TO_LONG[short]
         
     def make_bet(self, player):

@@ -66,6 +66,7 @@ class Round:
             # This is generally prefered by IRL card-counters (if they play at a table with other people, that is).
             if isinstance(player.strategy, HumanStrategy): self.print_table_moves()
 
+            # TODO: Make bust method for DRY.
             while True:
                 if player.current_bet > 0:
                     decision = player.make_decision(self.dealer_hand[0]) # Dealer upcard passed as argument
@@ -83,14 +84,7 @@ class Round:
                     elif decision in ["stand", "s"]:
                         break
                     elif decision in ["double", "d"]: # doubling in Blackjack is effectively double bet, then hit.
-                        if player.current_bet * 2 > player.bankroll:
-                            if self.interactive: print("You don't have the chips for that! Choose another option, big spender...")
-                            continue    # TODO: Make it so strategies that always double won't get messed up
-                                        # Either make so auto hit or rest of chips
-                                        # Would be better if just we actually took the chips from user when they bet
-                                        # Instead of modifying bankroll in "resolve" bets
-                                        # Which I guess technichally isn't resolving...
-                            
+                        # NOTE: Valid doubling is handled by each player now. Maybe not the best solution...
                         player.current_bet *= 2
 
                         if isinstance(player.strategy, HumanStrategy):
@@ -114,7 +108,7 @@ class Round:
 
 
         # --- Dealer turn ---
-        dealer_total = hand_total(self.dealer_hand) # TODO: Why calling twice? Messy. Fix.
+        dealer_total = hand_total(self.dealer_hand) # TODO: Why calling twice? Messy. Fix. I guess need to though.
 
         # Casino Convention: most dealers stand at 17 (soft or hard).
         while dealer_total < 17:
@@ -129,10 +123,14 @@ class Round:
         # NOTE: Technichally, we are more like finalizing bankroll adjustments.
         # Semantic difference, but it would be better perhaps if we directly modified
         # player bankroll at start of round (when bet occurs).
+        # Now, we are displaying correct "new" bankroll, but not actually changing until after round play.
+        # Should probably just parody real-world when you can.
+        # I guess I just didn't want to subtract, then add back.
 
         for player in self.players:
             player_total = hand_total(player.hand)
-            if player.current_bet <= 0: # overloaded logically. Implementation Debt.
+            if player.current_bet <= 0: # Overloaded logically. Implementation Debt.
+                                        # Would be better if some sort of flag.
                 
                 # These are the cases where no current bet
                 # Therefore could be be bust, blackjack, or push blackjack

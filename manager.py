@@ -41,11 +41,13 @@ class Manager:
         """
         Generalized input handler.
 
+        Args:
         - message: Prompt to show
         - choices: Optional list of valid string options
         - input_type: Type to convert input to (int, str, float)
         - validator: Optional function(input) -> bool for custom validation (only used to get correct range for ints)
         - invalid_message: Message to show if validator false
+        - is_name: Flag to determine if we should return raw string input (instead of lowered).
         """
         while True:
             raw = input(f"\n{message}").replace(" ", "")
