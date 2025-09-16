@@ -7,13 +7,13 @@ in functions as strings until everything is defined)."""
 
 import random
 from manager import Manager
-from deck import Card, hand_total
+from deck import Card
 from abc import ABC, abstractmethod
 import csv
 
 # Used to convert from CSV move to game move (so printed tables don't have letters, 
 # even though they are valid for humans to type as moves for convenience).
-SHORT_TO_LONG = {
+CHAR_TO_WORD = {
     "H":"hit",
     "S":"stand",
     "D":"double",
@@ -23,24 +23,20 @@ SHORT_TO_LONG = {
 }
 
 
-hard_totals_path="hard_totals.csv"
-soft_totals_path="soft_totals.csv"
-hard_totals = {}
-soft_totals = {}
+def csv_to_dict(path: str, row_header_title: str) -> dict:
+    d = {}
+    with open(path) as csv_file:
+        reader = csv.DictReader(csv_file)
+        for row in reader:
+            key = row[row_header_title].strip()
+            d[key] = {dealer.strip(): row[dealer].strip() for dealer in row if dealer != row_header_title}
+        return d
 
-# Load hard totals
-with open(hard_totals_path) as htp:
-    reader = csv.DictReader(htp)
-    for row in reader:
-        key = row["Player Total"].strip()  # strip spaces
-        hard_totals[key] = {dealer.strip(): row[dealer].strip() for dealer in row if dealer != "Player Total"}
+# Dicts constructed using csv file path names
+hard_totals = csv_to_dict("hard_totals.csv", "Player Total")
+soft_totals = csv_to_dict("soft_totals.csv", "Player Total")
+pair_splitting = csv_to_dict("pair-splitting.csv", "Player Pair") # NOTE: WIP.
 
-# Load soft totals
-with open(soft_totals_path) as stp:
-    reader = csv.DictReader(stp)
-    for row in reader:
-        key = row["Player Total"].strip()
-        soft_totals[key] = {dealer.strip(): row[dealer].strip() for dealer in row if dealer != "Player Total"}
 
 def dealer_key(card: Card):
     if card.rank in ["J", "Q", "K"]:
@@ -49,6 +45,25 @@ def dealer_key(card: Card):
         return "A"
     else:
         return card.rank
+
+# TODO: Move to Hand class.
+def hand_total(hand: list[Card]=None) -> int:
+    """Compute hand value considering Aces as 1 or 11."""
+    total = 0
+    ace_count = 0
+
+    for card in hand: 
+        if card.rank == "A":
+            total += 11
+            ace_count += 1
+        else:
+            total += card.value
+
+    while total > 21 and ace_count > 0:
+        total -= 10
+        ace_count -= 1
+
+    return total
 
 
 class Player:
@@ -67,8 +82,8 @@ class Player:
     
     def valid_double(self) -> bool:
         return self.bankroll >= self.current_bet * 2
-
-
+    
+    
 class Strategy(ABC):
     @abstractmethod
     def make_decision(self, player: Player, dealer_upcard: Card) -> str:
@@ -121,10 +136,11 @@ class DoublerStrategy(Strategy):
 class HumanStrategy(Strategy):
     """HumanStrategy... the fate of the game is left in your mortal hands! But forced to stand at 21."""
     def make_decision(self, player, dealer_upcard) -> str:
-        if hand_total(player.hand) == 21: return "stand" # Force stand by "dealer"
+        if hand_total(player.hand) == 21: return "stand"    # Force stand by "dealer"
+                                                            # NOTE: Is this already handled in Round class?
         
         if player.valid_double():
-            choices = ["hit", "h", "stand", "s", "double", "d"] # did it this way because I was concerend about appending... I could fix probably.
+            choices = ["hit", "h", "stand", "s", "double", "d"] # Did it this way because I was concerend about appending... I could fix probably.
         else:
             choices = ["hit", "h", "stand", "s"]
     
@@ -146,28 +162,34 @@ class BasicStrategy(Strategy):
     """Note that "Basic Strategy" is a specific Blackjack strategy that makes the best move based on dealer upcard and their own hand total."""
     def make_decision(self, player, dealer_upcard) -> str:
         h_total = hand_total(player.hand)
-        if h_total >= 20: return "stand"
-        if h_total < 8: return "hit"
+
+        # Commented out to handle after some sort of is pair determination.
+        # if h_total >= 20: return "stand"
+        # if h_total < 8: return "hit"
 
         dk = dealer_key(dealer_upcard)
 
-        # If soft hand
+
+
+        # If soft hand (could refactor to Hand class, when implemented).
         if any(c.rank == "A" for c in player.hand) and len(player.hand) == 2:
-            # Find the non-ace card
-            try: # TODO: Make less convoluted.
+
+            # TODO: This entire block that essentially checks for if AA can be removed when split/pair logic is implemented.
+            try: 
                 other_card = next(c for c in player.hand if c.rank != "A")
             except StopIteration:
-                return "hit" # Always split on two aces
+                return "hit" # Always split on two aces, for now hit. Will remove this anyways.
 
             # Because the CSV is more readable as just short values (i.e., "H", "D")
             # But this looks bad in CLI.
             soft_total_repr = "A" + str(other_card.value)
-            short = soft_totals[soft_total_repr][dk]
-            return SHORT_TO_LONG[short]
+            char = soft_totals[soft_total_repr][dk]
+            return CHAR_TO_WORD[char]
         else:
+            if h_total <= 7: return "hit" # Already need to have determined if pair or not (using split/pair logic) for this to be sound.
             row_key = "17+" if h_total >= 17 else str(h_total)
-            short = hard_totals[row_key][dk]
-            return SHORT_TO_LONG[short]
+            char = hard_totals[row_key][dk]
+            return CHAR_TO_WORD[char]
         
     def make_bet(self, player):
         return max(1, int(player.bankroll * 0.002 // 1)) # Bets 10% of bankroll for now

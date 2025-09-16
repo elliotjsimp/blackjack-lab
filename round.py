@@ -1,9 +1,11 @@
-from player import Player, HumanStrategy
+from player import Player, HumanStrategy, hand_total
 from manager import Manager
 from shoe import Shoe
-from deck import Card, hand_total
+from deck import Card
+
 
 BANNER_LEN = 45 # amount of "=" that prints is multiplied by this constant (for per-round print methods)
+
 
 class Round:
     """Defines a single Blackjack round."""
@@ -84,7 +86,7 @@ class Round:
                     elif decision in ["stand", "s"]:
                         break
                     elif decision in ["double", "d"]: # doubling in Blackjack is effectively double bet, then hit.
-                        # NOTE: Valid doubling is handled by each player now. Maybe not the best solution...
+                        # NOTE: Valid doubling is handled by each Strategy instance now. Maybe not the best solution...
                         player.current_bet *= 2
 
                         if isinstance(player.strategy, HumanStrategy):
@@ -100,11 +102,9 @@ class Round:
                             break
 
                 else:
-                    break   # For players in for loop who have hit Blackjack (push or not),
+                    break   # For players in for loop who have hit Blackjack (push or not (tie with dealer or not))),
                             # The "dealer" (else break code) forces them to be rational in these cases, and not play.
                             # We could apend "stand" here, but would be messy in tables/data.
-                
-
 
 
         # --- Dealer turn ---
@@ -122,10 +122,10 @@ class Round:
         # --- Resolve bets ---
         # NOTE: Technichally, we are more like finalizing bankroll adjustments.
         # Semantic difference, but it would be better perhaps if we directly modified
-        # player bankroll at start of round (when bet occurs).
-        # Now, we are displaying correct "new" bankroll, but not actually changing until after round play.
-        # Should probably just parody real-world when you can.
-        # I guess I just didn't want to subtract, then add back.
+        # Player bankroll at start of round (when bet occurs).
+        # Now, we are displaying "new" bankroll in print_bets method, but not actually changing until after round play.
+        # Should probably just parody real-world.
+        # I guess I just didn't want to subtract, then add back... but doesn't need to be operation-optimized like this.
 
         for player in self.players:
             player_total = hand_total(player.hand)

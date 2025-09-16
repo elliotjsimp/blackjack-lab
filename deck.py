@@ -8,7 +8,7 @@ class Card:
     def __str__(self):
         return f"{self.rank}{self.suit}"
     
-    # Used Basic Strategy
+    # Used by Basic Strategy
     def __repr__(self):
         return f"{self.rank}"
     
@@ -38,21 +38,5 @@ class Deck:
         self.cards = [Card(rank, suit) for suit in self.suits for rank in self.ranks]
 
 
-def hand_total(hand: list[Card]) -> int:
-    """Compute hand value considering Aces as 1 or 11."""
-    total = 0
-    ace_count = 0
 
-    for card in hand: 
-        if card.rank == "A":
-            total += 11
-            ace_count += 1
-        else:
-            total += card.value
-
-    while total > 21 and ace_count > 0:
-        total -= 10
-        ace_count -= 1
-
-    return total
 
