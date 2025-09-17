@@ -5,10 +5,11 @@ class Card:
         self.rank = rank  # e.g., "2", "J", "A"
         self.suit = suit  # e.g., "Hearts", "Spades"
 
+    # Used in round.py
     def __str__(self):
         return f"{self.rank}{self.suit}"
     
-    # Used by Basic Strategy
+    
     def __repr__(self):
         return f"{self.rank}"
     

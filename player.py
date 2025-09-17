@@ -18,8 +18,9 @@ CHAR_TO_WORD = {
     "S":"stand",
     "D":"double",
     "Ds":"double",   # allowed to double is true, therefore double
-    "Y": "split",    # UNIMPLEMENTED
-    "N": "no_split"  # UNIMPLEMENTED
+    "Y": "yes_split",    # UNIMPLEMENTED
+    "N": "no_split",  # UNIMPLEMENTED
+    "Yn": "split_if_double_after_split" # UNIMPLEMENTED
 }
 
 
@@ -32,13 +33,13 @@ def csv_to_dict(path: str, row_header_title: str) -> dict:
             d[key] = {dealer.strip(): row[dealer].strip() for dealer in row if dealer != row_header_title}
         return d
 
-# Dicts constructed using csv file path names
-hard_totals = csv_to_dict("hard_totals.csv", "Player Total")
-soft_totals = csv_to_dict("soft_totals.csv", "Player Total")
-pair_splitting = csv_to_dict("pair-splitting.csv", "Player Pair") # NOTE: WIP.
+# Dicts constructed using csv file paths
+hard_totals = csv_to_dict("./tables/hard-totals.csv", "Player Total")
+soft_totals = csv_to_dict("./tables/soft-totals.csv", "Player Total")
+pair_splitting = csv_to_dict("./tables/pair-splitting.csv", "Player Pair") # NOTE: WIP.
 
 
-def dealer_key(card: Card):
+def dealer_key(card: Card) -> str:
     if card.rank in ["J", "Q", "K"]:
         return "10"
     elif card.rank == "A":
@@ -46,7 +47,7 @@ def dealer_key(card: Card):
     else:
         return card.rank
 
-# TODO: Move to Hand class.
+# TODO: Move to Hand class, maybe.
 def hand_total(hand: list[Card]=None) -> int:
     """Compute hand value considering Aces as 1 or 11."""
     total = 0
@@ -64,6 +65,11 @@ def hand_total(hand: list[Card]=None) -> int:
         ace_count -= 1
 
     return total
+
+
+# TODO: Move to Hand class, maybe.
+def is_pair(hand: list[Card]) -> bool:
+    return len(hand) == 2 and hand[0].value == hand[1].value
 
 
 class Player:
@@ -169,6 +175,10 @@ class BasicStrategy(Strategy):
 
         dk = dealer_key(dealer_upcard)
 
+        if is_pair(player.hand):
+            pair_str = f"{dealer_key(player.hand[0])}{dealer_key(player.hand[1])}" # I guess could just do * 2.
+            split_char = pair_splitting[pair_str][dk]
+            print(f"Decision to split: {CHAR_TO_WORD[split_char]} with {player.hand} and DK: {dk}") 
 
 
         # If soft hand (could refactor to Hand class, when implemented).
@@ -192,7 +202,7 @@ class BasicStrategy(Strategy):
             return CHAR_TO_WORD[char]
         
     def make_bet(self, player):
-        return max(1, int(player.bankroll * 0.002 // 1)) # Bets 10% of bankroll for now
+        return max(1, int(player.bankroll * 0.05 // 1)) # Bets 5% of bankroll for now
 
 
 class Players:
