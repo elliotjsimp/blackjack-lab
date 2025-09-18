@@ -13,13 +13,10 @@ class Card:
     def __repr__(self):
         return f"{self.rank}"
     
-    # NOTE:
-    # __str__() would maybe be fully worded then, i.e., "Four of Diamonds".
-    # IDK what the value of this would be though, unless for some type of GUI.
-
+    
     @property
     def value(self) -> int:
-        """Returns the Blackjack value of the card."""
+        """Returns the Blackjack value of a card."""
         if self.rank in ["J", "Q", "K"]:
             return 10
         elif self.rank == "A":

@@ -8,18 +8,20 @@ in functions as strings until everything is defined)."""
 import random
 from manager import Manager
 from deck import Card
+from hand import Hand
 from abc import ABC, abstractmethod
 import csv
 
-# Used to convert from CSV move to game move (so printed tables don't have letters, 
-# even though they are valid for humans to type as moves for convenience).
+
+"""Used to convert from CSV move to game readable move (so printed tables don't have letters, 
+even though they are valid for humans to type as moves for convenience)."""
 CHAR_TO_WORD = {
     "H":"hit",
     "S":"stand",
     "D":"double",
-    "Ds":"double",   # allowed to double is true, therefore double
-    "Y": "yes_split",    # UNIMPLEMENTED
-    "N": "no_split",  # UNIMPLEMENTED
+    "Ds":"double",          # allowed to double is true, therefore double
+    "Y": "yes_split",       # UNIMPLEMENTED
+    "N": "no_split",        # UNIMPLEMENTED
     "Yn": "split_if_double_after_split" # UNIMPLEMENTED
 }
 
@@ -33,6 +35,7 @@ def csv_to_dict(path: str, row_header_title: str) -> dict:
             d[key] = {dealer.strip(): row[dealer].strip() for dealer in row if dealer != row_header_title}
         return d
 
+
 # Dicts constructed using csv file paths
 hard_totals = csv_to_dict("./tables/hard-totals.csv", "Player Total")
 soft_totals = csv_to_dict("./tables/soft-totals.csv", "Player Total")
@@ -40,6 +43,7 @@ pair_splitting = csv_to_dict("./tables/pair-splitting.csv", "Player Pair") # NOT
 
 
 def dealer_key(card: Card) -> str:
+    """Returns the "dealer key" string value of a card. Used for csv value mapping."""
     if card.rank in ["J", "Q", "K"]:
         return "10"
     elif card.rank == "A":
@@ -47,29 +51,6 @@ def dealer_key(card: Card) -> str:
     else:
         return card.rank
 
-# TODO: Move to Hand class, maybe.
-def hand_total(hand: list[Card]=None) -> int:
-    """Compute hand value considering Aces as 1 or 11."""
-    total = 0
-    ace_count = 0
-
-    for card in hand: 
-        if card.rank == "A":
-            total += 11
-            ace_count += 1
-        else:
-            total += card.value
-
-    while total > 21 and ace_count > 0:
-        total -= 10
-        ace_count -= 1
-
-    return total
-
-
-# TODO: Move to Hand class, maybe.
-def is_pair(hand: list[Card]) -> bool:
-    return len(hand) == 2 and hand[0].value == hand[1].value
 
 
 class Player:
@@ -78,9 +59,9 @@ class Player:
         self.strategy = strategy
         self.bankroll = bankroll
         self.current_bet: int = 0
-        self.hand: list[Card] = []
+        self.hand = Hand() # I think I need to have player hands, an array containing each hand (usually 1)
 
-    def make_decision(self, dealer_upcard: Card=None) -> str:
+    def make_decision(self, dealer_upcard: Card) -> str:
         return self.strategy.make_decision(self, dealer_upcard)
     
     def make_bet(self) -> int:
@@ -91,6 +72,7 @@ class Player:
     
     
 class Strategy(ABC):
+    """Strategy is an abstract base class (inherited by every Player object)."""
     @abstractmethod
     def make_decision(self, player: Player, dealer_upcard: Card) -> str:
         pass
@@ -104,18 +86,18 @@ class Strategy(ABC):
 
 class RandomStrategy(Strategy):
     """Random choice (but stands at 21)."""
-    def make_decision(self, player, dealer_upcard) -> str:
-        return "stand" if hand_total(player.hand) == 21 else random.choice(["hit", "stand"])
+    def make_decision(self, player) -> str:
+        return "stand" if player.hand.hand_total() == 21 else random.choice(["hit", "stand"])
 
     def make_bet(self, player) -> int:
-        # Random bet between 10% and 25% of bankroll
+        # Random bet between 10% and 25% of bankroll.
         return max(1, int(player.bankroll * random.uniform(0.1, 0.25) // 1))
 
 
 class RationalStrategy(Strategy):
     """Follows dealer logic, stands at 17 or more."""
     def make_decision(self, player, dealer_upcard) -> str:
-        if hand_total(player.hand) < 17:
+        if player.hand.hand_total() < 17:
             return "hit"
         return "stand"
     def make_bet(self, player) -> int:
@@ -130,9 +112,9 @@ class RationalOptimistStrategy(RationalStrategy):
 
 
 class DoublerStrategy(Strategy):
-    """Double instead of hit, every time."""
+    """Double instead of hit, every valid time."""
     def make_decision(self, player, dealer_upcard) -> str:
-        if hand_total(player.hand) < 17:
+        if player.hand.hand_total() < 17:
             return "double" if player.valid_double() else "hit"
         return "stand"
     def make_bet(self, player) -> int:
@@ -142,7 +124,7 @@ class DoublerStrategy(Strategy):
 class HumanStrategy(Strategy):
     """HumanStrategy... the fate of the game is left in your mortal hands! But forced to stand at 21."""
     def make_decision(self, player, dealer_upcard) -> str:
-        if hand_total(player.hand) == 21: return "stand"    # Force stand by "dealer"
+        if player.hand.hand_total() == 21: return "stand"    # Force stand by "dealer"
                                                             # NOTE: Is this already handled in Round class?
         
         if player.valid_double():
@@ -151,7 +133,7 @@ class HumanStrategy(Strategy):
             choices = ["hit", "h", "stand", "s"]
     
         return Manager.handle_input(
-            message=f"Your hand: {player.hand} (Score: {hand_total(player.hand)}), dealer shows {dealer_upcard}. Hit, stand or double? ",
+            message=f"Your hand: {player.hand.cards} (Score: {player.hand.hand_total()}), dealer shows {dealer_upcard}. Hit, stand or double? ",
             choices=choices,
             input_type=str,
             invalid_message="That wasn't a valid play.")
@@ -167,7 +149,7 @@ class HumanStrategy(Strategy):
 class BasicStrategy(Strategy):
     """Note that "Basic Strategy" is a specific Blackjack strategy that makes the best move based on dealer upcard and their own hand total."""
     def make_decision(self, player, dealer_upcard) -> str:
-        h_total = hand_total(player.hand)
+        h_total = player.hand.hand_total()
 
         # Commented out to handle after some sort of is pair determination.
         # if h_total >= 20: return "stand"
@@ -175,18 +157,18 @@ class BasicStrategy(Strategy):
 
         dk = dealer_key(dealer_upcard)
 
-        if is_pair(player.hand):
-            pair_str = f"{dealer_key(player.hand[0])}{dealer_key(player.hand[1])}" # I guess could just do * 2.
+        if player.hand.is_pair():
+            pair_str = f"{dealer_key(player.hand.cards[0])}{dealer_key(player.hand.cards[1])}" # I guess could just do * 2.
             split_char = pair_splitting[pair_str][dk]
-            print(f"Decision to split: {CHAR_TO_WORD[split_char]} with {player.hand} and DK: {dk}") 
+            print(f"DEBUG: Decision to split: {CHAR_TO_WORD[split_char]} with {player.hand.cards} and DK: {dk}") 
 
 
         # If soft hand (could refactor to Hand class, when implemented).
-        if any(c.rank == "A" for c in player.hand) and len(player.hand) == 2:
+        if any(c.rank == "A" for c in player.hand.cards) and len(player.hand.cards) == 2:
 
             # TODO: This entire block that essentially checks for if AA can be removed when split/pair logic is implemented.
             try: 
-                other_card = next(c for c in player.hand if c.rank != "A")
+                other_card = next(c for c in player.hand.cards if c.rank != "A")
             except StopIteration:
                 return "hit" # Always split on two aces, for now hit. Will remove this anyways.
 

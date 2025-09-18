@@ -1,7 +1,8 @@
-from player import Player, HumanStrategy, hand_total
+from player import Player, HumanStrategy 
 from manager import Manager
 from shoe import Shoe
 from deck import Card
+from hand import Hand
 
 
 BANNER_LEN = 45 # amount of "=" that prints is multiplied by this constant (for per-round print methods)
@@ -15,7 +16,7 @@ class Round:
         self.shoe = shoe
         self.round_number = round_number
         self.interactive = interactive
-        self.dealer_hand: list[Card] = []
+        self.dealer_hand = Hand()
 
         # This is probably not best decision but fine for now...
         # Whatever is best for performance for large `n_rounds` in session (for data analysis) is what should probably be implemented in the future...
@@ -42,15 +43,16 @@ class Round:
 
         # --- Initial deal ---
         for player in self.players:
-            player.hand = [self.shoe.deal_card(), self.shoe.deal_card()]
-        self.dealer_hand = [self.shoe.deal_card(), self.shoe.deal_card()]
+            # NOTE: Could make this cleaner. Might be issue when move to hands collection for player (to handle splitting).
+            player.hand.cards = [self.shoe.deal_card(), self.shoe.deal_card()]
+        self.dealer_hand.cards = [self.shoe.deal_card(), self.shoe.deal_card()]
 
         self.print_initial_deal()
 
         # --- Check for natural Blackjack's (auto-win) ---
-        dealer_total = hand_total(self.dealer_hand)
+        dealer_total = self.dealer_hand.hand_total()
         for player in self.players:
-            player_total = hand_total(player.hand)
+            player_total = player.hand.hand_total()
             if player_total == 21:
                 if dealer_total == 21:
                     # Push Blackjack 
@@ -71,13 +73,13 @@ class Round:
             # TODO: Make bust method for DRY.
             while True:
                 if player.current_bet > 0:
-                    decision = player.make_decision(self.dealer_hand[0]) # Dealer upcard passed as argument
+                    decision = player.make_decision(self.dealer_hand.cards[0]) # Dealer upcard passed as argument
                     self.decisions[player].append(decision)
 
                     if decision in ["hit", "h"]:
-                        player.hand.append(self.shoe.deal_card())
+                        player.hand.cards.append(self.shoe.deal_card())
 
-                        if hand_total(player.hand) > 21:
+                        if player.hand.hand_total() > 21:
                             self.decisions[player].append("bust")
 
                             player.bankroll -= player.current_bet
@@ -92,9 +94,9 @@ class Round:
                         if isinstance(player.strategy, HumanStrategy):
                             print(f"You doubled your bet to ${player.current_bet}...")
 
-                        player.hand.append(self.shoe.deal_card())
+                        player.hand.cards.append(self.shoe.deal_card())
 
-                        if hand_total(player.hand) > 21:
+                        if player.hand.hand_total() > 21:
                             self.decisions[player].append("bust")
 
                             player.bankroll -= player.current_bet
@@ -108,16 +110,16 @@ class Round:
 
 
         # --- Dealer turn ---
-        dealer_total = hand_total(self.dealer_hand) # TODO: Why calling twice? Messy. Fix. I guess need to though.
+        dealer_total = self.dealer_hand.hand_total() # TODO: Why calling twice? Messy. Fix. I guess need to though.
 
         # Casino Convention: most dealers stand at 17 (soft or hard).
         while dealer_total < 17:
-            self.dealer_hand.append(self.shoe.deal_card())
-            dealer_total = hand_total(self.dealer_hand)
+            self.dealer_hand.cards.append(self.shoe.deal_card())
+            dealer_total = self.dealer_hand.hand_total()
             # if self.interactive: print(f"Dealer hits: {self.dealer_hand} (Total: {dealer_total})")
 
         
-        if self.interactive: print(f"\nDealer's full hand: {self.dealer_hand} (Total: {hand_total(self.dealer_hand)})\n")
+        if self.interactive: print(f"\nDealer's full hand: {self.dealer_hand} (Total: {self.dealer_hand.hand_total()})\n")
 
         # --- Resolve bets ---
         # NOTE: Technichally, we are more like finalizing bankroll adjustments.
@@ -128,7 +130,7 @@ class Round:
         # I guess I just didn't want to subtract, then add back... but doesn't need to be operation-optimized like this.
 
         for player in self.players:
-            player_total = hand_total(player.hand)
+            player_total = player.hand.hand_total()
             if player.current_bet <= 0: # Overloaded logically. Implementation Debt.
                                         # Would be better if some sort of flag.
                 
@@ -188,13 +190,13 @@ class Round:
         print("\n","="*BANNER_LEN, sep="")
         print("Initial Deal")
         print("="*BANNER_LEN)
-        print(f"\nDealer Shows {self.dealer_hand[0]}") # Dealer upcard
+        print(f"\nDealer Shows {self.dealer_hand.cards[0]}") # Dealer upcard
         print("\nPlayer     | Hand              | Total") 
         print("-----------+-------------------+-------")
 
         for player in self.players:
-            hand_str = ", ".join(str(card) for card in player.hand)
-            print(f"{player.name:<10} | {hand_str:<17} | {hand_total(player.hand)}")
+            hand_str = ", ".join(str(card) for card in player.hand.cards)
+            print(f"{player.name:<10} | {hand_str:<17} | {player.hand.hand_total()}")
 
     
     # TODO: Normalize naming convention project-wide (move vs decision... which?)
@@ -212,7 +214,7 @@ class Round:
         print("-----------+---------------------------+---------")
 
         for player in self.players:
-            hand_str = ", ".join(str(card) for card in player.hand)
+            hand_str = ", ".join(str(card) for card in player.hand.cards)
 
             # `d` is each str in array of str's as the value of decisions dict, with Player object as key.
             decisions_str = ", ".join(d.upper() for d in self.decisions[player])
