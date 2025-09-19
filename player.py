@@ -10,6 +10,7 @@ from manager import Manager
 from deck import Card
 from hand import Hand
 from abc import ABC, abstractmethod
+from collections import deque
 import csv
 
 
@@ -52,14 +53,19 @@ def dealer_key(card: Card) -> str:
         return card.rank
 
 
-
+# TODO: Replace hard-coded player.hands_collection[0]
 class Player:
-    def __init__(self, name: str, strategy: Strategy, bankroll: int=1000):
+    def __init__(self, name: str, strategy: Strategy, bankroll: int=10000):
         self.name = name
         self.strategy = strategy
         self.bankroll = bankroll
-        self.current_bet: int = 0
-        self.hand = Hand() # I think I need to have player hands, an array containing each hand (usually 1)
+        self.initial_bankroll = bankroll
+        #self.current_bet: int = 0               # TODO: Refactor bet responsiblility to Hand.
+        self.hands_collection: deque            # NOTE: Object gets replaced anyways in round.py at start of each round... could fix.
+        self.current_hand: Hand                 # TODO: Change all methods (mainly make_decision() to use this)... might not be best though...
+                                                # NOTE: Might need to make a hand : Move(s)/Result type of dict per player object
+        self.final_hands: list[Hand]
+        self.per_hand_result: dict[Hand: list[str]]
 
     def make_decision(self, dealer_upcard: Card) -> str:
         return self.strategy.make_decision(self, dealer_upcard)
@@ -68,8 +74,35 @@ class Player:
         return self.strategy.make_bet(self)
     
     def valid_double(self) -> bool:
-        return self.bankroll >= self.current_bet * 2
+        return self.bankroll >= self.current_hand.bet * 2
     
+    # FORMERLY: valid_split
+    def can_split(self) -> bool:
+        """Casino Convention: No more than 4 hands per round, per player."""
+        return len(self.hands_collection) < 3 and self.valid_double() # Splitting effectively doubles your bet. Placeholder.
+        # NOTE: Not checking if pair here. That is done on a per-hand basis. This is to see if the player can validly split.
+        # This might not be the best design... it opens opportunity for errors I think.
+    
+    # TODO?: Some sort of method to loop through all player hands in hands_collection MAYBE...
+
+    # NOTE: Some places use if self.interactive boolean flag, in round.py... can we replace? IDK.
+    def is_human(self) -> bool:
+        """Helper method to determine if a player is the human player."""
+        return isinstance(self.strategy, HumanStrategy)
+    
+    def handle_bust(self) -> bool:
+        """Do logic to handle when a Player busts a hand."""
+        if self.current_hand.has_busted():
+            # self.bankroll -= self.current_hand.bet # make sure not doubling...
+            # self.current_hand.bet = 0 # might not need this line.
+            self.per_hand_result[self.current_hand].append("bust")
+            return True
+        return False
+    
+
+    def record_cur_hand(self) -> None:
+        self.final_hands.append(self.current_hand)
+
     
 class Strategy(ABC):
     """Strategy is an abstract base class (inherited by every Player object)."""
@@ -78,7 +111,7 @@ class Strategy(ABC):
         pass
 
     @abstractmethod
-    def make_bet(self, player: Player) -> str:
+    def make_bet(self, player: Player) -> int:
         pass
 
 
@@ -86,8 +119,8 @@ class Strategy(ABC):
 
 class RandomStrategy(Strategy):
     """Random choice (but stands at 21)."""
-    def make_decision(self, player) -> str:
-        return "stand" if player.hand.hand_total() == 21 else random.choice(["hit", "stand"])
+    def make_decision(self, player, dealer_upcard) -> str:
+        return "stand" if player.current_hand.hand_total() == 21 else random.choice(["hit", "stand"])
 
     def make_bet(self, player) -> int:
         # Random bet between 10% and 25% of bankroll.
@@ -97,24 +130,24 @@ class RandomStrategy(Strategy):
 class RationalStrategy(Strategy):
     """Follows dealer logic, stands at 17 or more."""
     def make_decision(self, player, dealer_upcard) -> str:
-        if player.hand.hand_total() < 17:
+        if player.current_hand.hand_total() < 17:
             return "hit"
         return "stand"
     def make_bet(self, player) -> int:
-        return max(1, int(player.bankroll * 0.20 // 1)) # Bets 20% of bankroll
+        return max(1, int(player.bankroll * 0.05 // 1)) # Bets 5% of bankroll
 
 
 class RationalOptimistStrategy(RationalStrategy):
     """Behaves like RationalStrategy but bets more aggressively."""
     def make_bet(self, player) -> int:
         # Bets 50% of bankroll
-        return max(1, int(player.bankroll * 0.5 // 1))
+        return max(1, int(player.bankroll * 0.50 // 1))
 
 
 class DoublerStrategy(Strategy):
     """Double instead of hit, every valid time."""
     def make_decision(self, player, dealer_upcard) -> str:
-        if player.hand.hand_total() < 17:
+        if player.current_hand.hand_total() < 17:
             return "double" if player.valid_double() else "hit"
         return "stand"
     def make_bet(self, player) -> int:
@@ -124,16 +157,20 @@ class DoublerStrategy(Strategy):
 class HumanStrategy(Strategy):
     """HumanStrategy... the fate of the game is left in your mortal hands! But forced to stand at 21."""
     def make_decision(self, player, dealer_upcard) -> str:
-        if player.hand.hand_total() == 21: return "stand"    # Force stand by "dealer"
-                                                            # NOTE: Is this already handled in Round class?
+        if player.current_hand.hand_total() == 21: return "stand"   # Force stand by "dealer"
+                                                                    # NOTE: Is this already handled in Round class?
         
         if player.valid_double():
             choices = ["hit", "h", "stand", "s", "double", "d"] # Did it this way because I was concerend about appending... I could fix probably.
+            if player.can_split():
+                choices.append("split")
         else:
             choices = ["hit", "h", "stand", "s"]
+
+        
     
         return Manager.handle_input(
-            message=f"Your hand: {player.hand.cards} (Score: {player.hand.hand_total()}), dealer shows {dealer_upcard}. Hit, stand or double? ",
+            message=f"Your hand: {player.current_hand.cards} (Score: {player.current_hand.hand_total()}), dealer shows {dealer_upcard}. Hit, stand or double? ",
             choices=choices,
             input_type=str,
             invalid_message="That wasn't a valid play.")
@@ -149,7 +186,7 @@ class HumanStrategy(Strategy):
 class BasicStrategy(Strategy):
     """Note that "Basic Strategy" is a specific Blackjack strategy that makes the best move based on dealer upcard and their own hand total."""
     def make_decision(self, player, dealer_upcard) -> str:
-        h_total = player.hand.hand_total()
+        hand_total = player.current_hand.hand_total()
 
         # Commented out to handle after some sort of is pair determination.
         # if h_total >= 20: return "stand"
@@ -157,18 +194,24 @@ class BasicStrategy(Strategy):
 
         dk = dealer_key(dealer_upcard)
 
-        if player.hand.is_pair():
-            pair_str = f"{dealer_key(player.hand.cards[0])}{dealer_key(player.hand.cards[1])}" # I guess could just do * 2.
+        if player.current_hand.is_pair():
+            pair_str = f"{dealer_key(player.current_hand.cards[0])}{dealer_key(player.current_hand.cards[1])}" # I guess could just do * 2.
             split_char = pair_splitting[pair_str][dk]
-            print(f"DEBUG: Decision to split: {CHAR_TO_WORD[split_char]} with {player.hand.cards} and DK: {dk}") 
+            decision_split = CHAR_TO_WORD[split_char]
 
+            print(f"DEBUG: Decision to split: {decision_split} with {player.current_hand.cards} and DK: {dk}") 
+            
+            # We allow double after split. Takes away some house advantage.
+            if decision_split in ["yes_split", "split_if_double_after_split"]:
+                return "split"
+            
 
         # If soft hand (could refactor to Hand class, when implemented).
-        if any(c.rank == "A" for c in player.hand.cards) and len(player.hand.cards) == 2:
+        if any(c.rank == "A" for c in player.current_hand.cards) and len(player.current_hand.cards) == 2:
 
-            # TODO: This entire block that essentially checks for if AA can be removed when split/pair logic is implemented.
+            # TODO: This entire block that essentially checks for if AA CAN BE REMOVED when split logic is implemented
             try: 
-                other_card = next(c for c in player.hand.cards if c.rank != "A")
+                other_card = next(c for c in player.current_hand.cards if c.rank != "A")
             except StopIteration:
                 return "hit" # Always split on two aces, for now hit. Will remove this anyways.
 
@@ -178,27 +221,31 @@ class BasicStrategy(Strategy):
             char = soft_totals[soft_total_repr][dk]
             return CHAR_TO_WORD[char]
         else:
-            if h_total <= 7: return "hit" # Already need to have determined if pair or not (using split/pair logic) for this to be sound.
-            row_key = "17+" if h_total >= 17 else str(h_total)
+            if hand_total <= 7: return "hit" # Already need to have determined if pair or not (using split/pair logic) for this to be sound.
+            row_key = "17+" if hand_total >= 17 else str(hand_total)
             char = hard_totals[row_key][dk]
             return CHAR_TO_WORD[char]
         
     def make_bet(self, player):
-        return max(1, int(player.bankroll * 0.05 // 1)) # Bets 5% of bankroll for now
+        return max(1, int(player.bankroll * 0.001  // 1)) # Bets 0.1% of bankroll for now
 
 
 class Players:
-    ROSTER = [
-        Player("The Pro", BasicStrategy()),
-        Player("Rational", RationalStrategy()),
-        Player("Doubler", DoublerStrategy())
-    ]
+    # ROSTER = [
+    #     Player("The Pro", BasicStrategy()),
+    #     Player("Rational", RationalStrategy()),
+    #     Player("Doubler", DoublerStrategy())
+    # ]
 
+    # Want to play alone with dealer.
     # ROSTER = []
 
-    # ROSTER = [
-    #     Player("The Pro", BasicStrategy(), bankroll=1000),
-    # ]
+    # Want to play with just The Pro, or simulate just The Pro.
+    ROSTER = [
+        Player("The Pro", BasicStrategy())
+    ]
+
+    #ROSTER.append(Player("Rational", RandomStrategy()))
 
 
 

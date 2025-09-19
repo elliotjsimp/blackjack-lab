@@ -50,7 +50,7 @@ class Shoe:
             # Insert shuffled discards into shoe at random insertion point
             # Using empty slice so no cards are removed from shoe
 
-            # print("Debug: Using CSM.")
+            # print("DEBUG: Using CSM.")
             random.shuffle(self.discards)
             insertion_point = random.randint(0, len(self.cards))
             self.cards[insertion_point:insertion_point] = self.discards
