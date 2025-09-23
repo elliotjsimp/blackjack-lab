@@ -67,6 +67,6 @@ class Session:
 
                 print(f"\n{player.name} finished with ${player.bankroll}")
                 print(f"{player.name}'s max bankroll: ${max_bankroll}")
-                print(f"Max bankroll growth: {disp_max_g}% Initial bankroll: ${player.initial_bankroll})")
+                print(f"Max bankroll growth: {disp_max_g}% Initial bankroll: ${player.initial_bankroll}")
                 print(f"Net bankroll growth: {disp_net_g}%")
             print("")

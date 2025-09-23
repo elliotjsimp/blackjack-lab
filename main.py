@@ -1,7 +1,7 @@
 from manager import Manager
 from messages import Messages
 from session import Session
-from player import Player, Players, HumanStrategy
+from player import Player, Players, HumanStrategy, BasicStrategy
 
 MAX_ROUNDS = 10000000
 
@@ -28,13 +28,13 @@ if __name__ == "__main__":
         session = Session(Players.ROSTER)
         session.play_session()
 
-    else: # start_choice == "sim"
+    else: # sim
+        Players.ROSTER.append(Player("The Pro", BasicStrategy())) # Human always at last "seat" of "table"
         n_rounds = Manager.handle_input(
             Messages.N_ROUNDS, 
             input_type=int, 
             validator=lambda x: 1<=x<=MAX_ROUNDS,
             invalid_message=f"Please choose a number between 1 and {MAX_ROUNDS}")
-        
         session = Session(Players.ROSTER, n_rounds)
         session.play_session()
 

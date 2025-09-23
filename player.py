@@ -20,10 +20,10 @@ CHAR_TO_WORD = {
     "H":"hit",
     "S":"stand",
     "D":"double",
-    "Ds":"double",          # allowed to double is true, therefore double
-    "Y": "yes_split",       # UNIMPLEMENTED
-    "N": "no_split",        # UNIMPLEMENTED
-    "Yn": "split_if_double_after_split" # UNIMPLEMENTED
+    "Ds":"double",
+    "Y": "yes_split",
+    "N": "no_split",
+    "Yn": "split_if_double_after_split"
 }
 
 
@@ -37,10 +37,10 @@ def csv_to_dict(path: str, row_header_title: str) -> dict:
         return d
 
 
-# Dicts constructed using csv file paths
+# Dicts constructed from csv files. 
 hard_totals = csv_to_dict("./tables/hard-totals.csv", "Player Total")
 soft_totals = csv_to_dict("./tables/soft-totals.csv", "Player Total")
-pair_splitting = csv_to_dict("./tables/pair-splitting.csv", "Player Pair") # NOTE: WIP.
+pair_splitting = csv_to_dict("./tables/pair-splitting.csv", "Player Pair")
 
 
 def dealer_key(card: Card) -> str:
@@ -60,36 +60,40 @@ class Player:
         self.strategy = strategy
         self.bankroll = bankroll
         self.initial_bankroll = bankroll
-        #self.current_bet: int = 0               # TODO: Refactor bet responsiblility to Hand.
-        self.hands_collection: deque            # NOTE: Object gets replaced anyways in round.py at start of each round... could fix.
-        self.current_hand: Hand                 # TODO: Change all methods (mainly make_decision() to use this)... might not be best though...
-                                                # NOTE: Might need to make a hand : Move(s)/Result type of dict per player object
+        self.hands_collection: deque # Constructed at the beginning of each round... Somewhat wasteful. Could fix.
+        self.current_hand: Hand                 
         self.final_hands: list[Hand]
         self.per_hand_result: dict[Hand: list[str]]
+
 
     def make_decision(self, dealer_upcard: Card) -> str:
         return self.strategy.make_decision(self, dealer_upcard)
     
+
     def make_bet(self) -> int:
         return self.strategy.make_bet(self)
     
-    def valid_double(self) -> bool:
-        return self.bankroll >= self.current_hand.bet * 2
+
+    # FORMERLY: valid_double
+    def can_double(self) -> bool:
+        """Return True if the player has enough bankroll to double their current bet."""
+        return self.bankroll >= self.current_hand.bet # Fixed, was using bet * 2 still.
+    
     
     # FORMERLY: valid_split
     def can_split(self) -> bool:
         """Casino Convention: No more than 4 hands per round, per player."""
-        return len(self.hands_collection) < 3 and self.valid_double() # Splitting effectively doubles your bet. Placeholder.
-        # NOTE: Not checking if pair here. That is done on a per-hand basis. This is to see if the player can validly split.
-        # This might not be the best design... it opens opportunity for errors I think.
+        return len(self.hands_collection) < 4 and self.can_double() and self.current_hand.is_pair() # Splitting effectively doubles your bet.
+        # NOTE: Now checking if pair also...
+        # This might not be the best design... it opens opportunity for errors I feel.
     
-    # TODO?: Some sort of method to loop through all player hands in hands_collection MAYBE...
 
     # NOTE: Some places use if self.interactive boolean flag, in round.py... can we replace? IDK.
     def is_human(self) -> bool:
         """Helper method to determine if a player is the human player."""
         return isinstance(self.strategy, HumanStrategy)
     
+
     def handle_bust(self) -> bool:
         """Do logic to handle when a Player busts a hand."""
         if self.current_hand.has_busted():
@@ -148,7 +152,7 @@ class DoublerStrategy(Strategy):
     """Double instead of hit, every valid time."""
     def make_decision(self, player, dealer_upcard) -> str:
         if player.current_hand.hand_total() < 17:
-            return "double" if player.valid_double() else "hit"
+            return "double" if player.can_double() else "hit"
         return "stand"
     def make_bet(self, player) -> int:
         return max(1, int(player.bankroll * 0.20 // 1)) # Bets 20% of bankroll
@@ -160,17 +164,20 @@ class HumanStrategy(Strategy):
         if player.current_hand.hand_total() == 21: return "stand"   # Force stand by "dealer"
                                                                     # NOTE: Is this already handled in Round class?
         
-        if player.valid_double():
-            choices = ["hit", "h", "stand", "s", "double", "d"] # Did it this way because I was concerend about appending... I could fix probably.
+        choices = ["hit", "h", "stand", "s"]
+        choice_indicator = "Hit or stand?"
+
+        if player.can_double():
+            choices.append("double")
+            choices.append("d")
+            choice_indicator = "Hit, double or stand?"
             if player.can_split():
                 choices.append("split")
-        else:
-            choices = ["hit", "h", "stand", "s"]
+                choice_indicator = "Hit, double, split or stand?"
 
-        
-    
+
         return Manager.handle_input(
-            message=f"Your hand: {player.current_hand.cards} (Score: {player.current_hand.hand_total()}), dealer shows {dealer_upcard}. Hit, stand or double? ",
+            message=f"Your hand: {player.current_hand.cards} (Score: {player.current_hand.hand_total()}), dealer shows {dealer_upcard}. {choice_indicator} ",
             choices=choices,
             input_type=str,
             invalid_message="That wasn't a valid play.")
@@ -199,21 +206,24 @@ class BasicStrategy(Strategy):
             split_char = pair_splitting[pair_str][dk]
             decision_split = CHAR_TO_WORD[split_char]
 
-            print(f"DEBUG: Decision to split: {decision_split} with {player.current_hand.cards} and DK: {dk}") 
-            
-            # We allow double after split. Takes away some house advantage.
-            if decision_split in ["yes_split", "split_if_double_after_split"]:
+            print(f"DEBUG: Decision to split: {decision_split} with {player.current_hand.cards} and DK: {dk}")
+            print(f"DEBUG: Bankroll: ${player.bankroll}, Cur bet: {player.current_hand.bet}")
+            if len(player.hands_collection) > 4:
+                raise RuntimeError # Greater than allowed amount of hands bug... what is going on?
+             
+            # We allow double after split. Takes away some house advantage (like 0.2% or something).
+            if decision_split in ["yes_split", "split_if_double_after_split"]:    
                 return "split"
             
-
         # If soft hand (could refactor to Hand class, when implemented).
         if any(c.rank == "A" for c in player.current_hand.cards) and len(player.current_hand.cards) == 2:
 
-            # TODO: This entire block that essentially checks for if AA CAN BE REMOVED when split logic is implemented
+            # NOTE: I think still needed... what if can't split (bankroll too low relative to bet), but is pair?
             try: 
                 other_card = next(c for c in player.current_hand.cards if c.rank != "A")
             except StopIteration:
                 return "hit" # Always split on two aces, for now hit. Will remove this anyways.
+
 
             # Because the CSV is more readable as just short values (i.e., "H", "D")
             # But this looks bad in CLI.
@@ -237,15 +247,8 @@ class Players:
     #     Player("Doubler", DoublerStrategy())
     # ]
 
-    # Want to play alone with dealer.
-    # ROSTER = []
+    ROSTER = []
 
-    # Want to play with just The Pro, or simulate just The Pro.
-    ROSTER = [
-        Player("The Pro", BasicStrategy())
-    ]
-
-    #ROSTER.append(Player("Rational", RandomStrategy()))
 
 
 

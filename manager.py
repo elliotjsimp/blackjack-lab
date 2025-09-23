@@ -57,6 +57,7 @@ class Manager:
                 Manager.quit_game()
 
             # If expecting string input, reject numeric-looking entries up front
+            # TODO: Make less convoluted
             if input_type is str:
                 try:
                     float(raw) # Succeeds if numeric-like
@@ -73,10 +74,9 @@ class Manager:
             
             # Check if in choices
             if choices and (lower_raw not in [c.lower() for c in choices]):
-                print(invalid_message) # W
+                print(invalid_message)
                 continue
             
-            # Currently only used for range check to get n_rounds in main.py, when start_choice is sim
             if validator and not validator(value): # Using lambda function
                 print(invalid_message)
                 continue
@@ -85,6 +85,6 @@ class Manager:
             Manager.show_spinner()
 
             if input_type is str:
-                # So we don't return lower for HumanStrategy Player name (i.e., the user, LOL)
+                # So we don't return lower for HumanStrategy Player name (i.e., the user's name, LOL)
                 return raw if is_name else lower_raw 
             return value

@@ -122,7 +122,6 @@ class Round:
                             # We could apend "stand" here, but would be messy in tables/data.
     """
 
-    # TODO: Fully implement and utilize.
     def player_turns_with_split(self) -> None:
         """A WIP method to replace the player_turns method. Supports splitting hands."""
 
@@ -161,20 +160,21 @@ class Round:
                             break
                         
                         case "double" | "d":
-                            if not player.valid_double():
-                                if player.is_human():
-                                    print("You can't double!")
-                                    continue
-                                else:
-                                    print("Uh oh, this will cause an infinite loop!")
-                                    print(f"{player.name} wants to double... can they?: {str(player.valid_double())}")
-                                    print(f"Current bet: {player.current_hand.bet}, Bankroll: {player.bankroll}")
-                                    raise RuntimeError
+                            if not player.can_double():
+                               
+                                # NOTE: Pretty sure fixed bug so that this won't happen anymore.
+                                # Was because can_double method wasn't considering the fact
+                                # That we properly handle subtracting bet from bankroll at start of round.
+                                print("Uh oh, this will cause an infinite loop!")
+                                print(f"{player.name} wants to double... can they?: {str(player.can_double())}")
+                                print(f"Current bet: {player.current_hand.bet}, Bankroll: {player.bankroll}")
+                                raise RuntimeError
 
-                            # FIX
                             player.bankroll -= player.current_hand.bet
                             if player.bankroll < 0: raise RuntimeError
                             player.current_hand.bet *= 2
+
+                            if player.bankroll == 0: print("You're all in!")
                             
                             player.current_hand.add_card(self.shoe.deal_card())
                             player.per_hand_result[player.current_hand].append("double")
@@ -196,7 +196,7 @@ class Round:
                                 
                                 new_hand2 = Hand()
                                 new_hand2.bet = player.current_hand.bet
-                                player.bankroll -= player.current_hand.bet # FIX
+                                player.bankroll -= player.current_hand.bet
                                 if player.bankroll < 0: raise RuntimeError
 
                                 new_hand1.add_card(player.current_hand.cards[0])
@@ -205,20 +205,23 @@ class Round:
                                 new_hand1.add_card(self.shoe.deal_card())
                                 new_hand2.add_card(self.shoe.deal_card())
 
-                                player.hands_collection.clear() # Does this quick fix work?
-
                                 # Put new hands to the front of the queue (ensures correct playing order)
                                 player.hands_collection.appendleft(new_hand2)
                                 player.hands_collection.appendleft(new_hand1)
 
-                                print(f"DEBUG: You split your hand! New hands: {new_hand1.cards}, {new_hand2.cards}")
-
                                 player.per_hand_result[player.current_hand].append("split")
-                                player.record_cur_hand()
+                                player.record_cur_hand() # Because we used popleft to access current hand.
+
+                                all_hands = ", ".join(str(h.cards) for h in player.hands_collection)
+                                # completed_hands = ", ".join(str(h.cards) for h in player.final_hands)
+
+                                print(f"Pending hands: {all_hands}")
+                                # print(f"Completed hands: {completed_hands}") # Includes hands that weren't yet split. Doesn't make sense to user.
                                 break
 
                             else:
                                 if player.is_human():
+                                    # Wait, we should be handling this with handle_input...
                                     if not can_split and is_pair:
                                         msg = "You aren't allowed to split!"
                                     else:
@@ -263,17 +266,26 @@ class Round:
                 hand_result = player.per_hand_result[hand][-1] # Last result for hand.
 
                 # TODO: Implement table print method instead of this placeholder.
-                print(f"{player.name} {hand_result} ${hand.bet} (Total: {hand_total})")
+                if hand_result == "split":
+                    print(f"{player.name} {hand_result} a ${hand.bet} hand...")
+                else:
+                    print(f"{player.name} {hand_result} ${hand.bet}")
+
+                    # DEBUG
+                    print(f"Player: {hand.cards}, ({hand_total})")
+                    print(f"Dealer: {self.dealer_hand.cards}, ({dealer_total})")
+
 
 
     def play_round(self):
         """Handles core round logic. I've tried to provide an ample amount of comments, mainly
         for people who may not know how Blackjack works."""
 
-        print(f"\nDEBUG: Round Number {self.round_number}")
-
         remove = self.removal_check()
         if remove: return remove
+
+        print(f"\nRound Number {self.round_number}")
+
 
         # --- Take Bets ---
         for player in self.players:
@@ -317,8 +329,8 @@ class Round:
     # Please forgive my non-DRY (wet, if you will) implementations of the following print methods:
     def print_bets(self) -> None:
         """"""
-        if not self.interactive: return None
-        Manager.show_spinner()
+        # if not self.interactive: return None
+        # Manager.show_spinner()
         print("\n","="*BANNER_LEN, sep="")
         print(f"Round {self.round_number} Bets")
         print("="*BANNER_LEN)
