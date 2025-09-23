@@ -1,22 +1,22 @@
-# Blackjack Lab: Play, Simulate, Learn  
+# Blackjack Lab
 
-Blackjack Lab is a project designed to provide three core functionalities related to the game of Blackjack:  
+>Work in progress. Take this readme with a grain of salt (for now...)
+
+
+Blackjack Lab is a project designed to provide two core functionalities related to the game of Blackjack:  
 
 
 ## Play
 - Play Blackjack sessions with or without additional (simulated) players, against a dealer.  
-- Practice strategies or simply play for testing and experimentation (or fun, of course).
+- Practice strategies or simply play for testing and experimentation (or for fun, of course).
 
 
 ## Simulate
 - Run large-scale simulations of Blackjack sessions, with configurable numbers of players and rounds.  
 - Define and test your own strategies under realistic conditions.
-- *(Planned)*: Add visualization tools to better understand simulation results.  
-
-
-## Learn
-- Study Blackjack fundamentals, including “Basic Strategy” and card counting.  
-- *(Planned)*: Documentation and guides to explain concepts in detail.  
+- Simulate Basic Strategy (proper noun indeed, not a basic strategy).
+- Planned: Simulate Hi-Lo card-counting (builds off of Basic Strategy).
+- Planned: Visualize data to better understand simulation results.  
 
 
 ### Notes for Blackjack Nerds:
