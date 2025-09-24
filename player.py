@@ -217,25 +217,38 @@ class BasicStrategy(Strategy):
             
         # If soft hand (could refactor to Hand class, when implemented).
         if any(c.rank == "A" for c in player.current_hand.cards) and len(player.current_hand.cards) == 2:
+            
+            # I don't like the try-except block below, but I think it is needed.
+            # What if bankroll low, therefore can't split.
+            # This is a potential concern for a player using Basic Strategy
+            # Theoretically won't be a concern for card counter player, as long as bankroll is big enough (and correct implementation).
+            
+            # TODO: Make so can't resplit aces (convention) (i.e., can't split another AA hand if already split an AA hand that round)
 
-            # NOTE: I think still needed... what if can't split (bankroll too low relative to bet), but is pair?
             try: 
                 other_card = next(c for c in player.current_hand.cards if c.rank != "A")
             except StopIteration:
-                return "hit" # Always split on two aces, for now hit. Will remove this anyways.
+                return "hit" # Always split on two aces, for now hit.
 
 
             # Because the CSV is more readable as just short values (i.e., "H", "D")
             # But this looks bad in CLI.
             soft_total_repr = "A" + str(other_card.value)
             char = soft_totals[soft_total_repr][dk]
-            return CHAR_TO_WORD[char]
+
         else:
             if hand_total <= 7: return "hit" # Already need to have determined if pair or not (using split/pair logic) for this to be sound.
             row_key = "17+" if hand_total >= 17 else str(hand_total)
             char = hard_totals[row_key][dk]
-            return CHAR_TO_WORD[char]
-        
+
+        decision = CHAR_TO_WORD[char]
+
+        if decision == "double" and not player.can_double():
+            return "hit"
+        return decision
+
+
+         
     def make_bet(self, player):
         return max(1, int(player.bankroll * 0.001  // 1)) # Bets 0.1% of bankroll for now
 
