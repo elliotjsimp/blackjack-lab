@@ -1,7 +1,7 @@
 from manager import Manager
 from messages import Messages
 from session import Session
-from player import Player, Players, HumanStrategy, BasicStrategy
+from player import Player, Players, HumanStrategy, BasicStrategy, CardCountingPlayer
 
 MAX_ROUNDS = 10000000
 
@@ -29,7 +29,7 @@ if __name__ == "__main__":
         session.play_session()
 
     else: # sim
-        Players.ROSTER.append(Player("The Pro", BasicStrategy())) # Human always at last "seat" of "table"
+        Players.ROSTER.append(CardCountingPlayer("The Pro", BasicStrategy())) # Human always at last "seat" of "table"
         n_rounds = Manager.handle_input(
             Messages.N_ROUNDS, 
             input_type=int, 

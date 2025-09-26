@@ -1,4 +1,5 @@
 from deck import Deck, Card
+from counter import CardCounter
 import random
 
 class Shoe:
@@ -8,26 +9,33 @@ class Shoe:
         self.use_csm = use_csm
         self.cards = []
         self.discards = []
+        self.card_counter = CardCounter()
         self.build_shoe()
 
     @property
     def cut_card_position(self):
         return int(52 * self.deck_count * (1 - self.penetration))
 
+    def decks_remaining(self) -> float:
+        return len(self.cards) / 52  # Just count what's left in the shoe!
+
+
     def build_shoe(self):
         # print("Debug: Building Shoe")
         self.cards.clear()
         self.discards.clear()
+        self.card_counter.reset_counts()
+
         for _ in range(self.deck_count):
             self.cards.extend(Deck().cards)
         self.shuffle()
-        
+    
     def shuffle(self):
-        """Shuffle the shoe."""
-        # print("Debug: Shuffling the shoe.")
+        print("Debug: Shuffling the shoe.")
         random.shuffle(self.cards)
 
-    def deal_card(self) -> Card:
+
+    def deal_card(self, update_count: bool=True) -> Card:
         """Deal a card from the shoe."""
         # Automatic reshuffle if necessary based on penetration into shoe (not csm)
         if not self.use_csm and len(self.cards) < self.cut_card_position:
@@ -39,9 +47,13 @@ class Shoe:
         # print(f"Debug: Penetration is {penetration_percent:.2f}%")
 
         card = self.cards.pop()
+
+        # Only update count for visible cards (not dealer's hole card)
+        if update_count:
+            self.card_counter.update_counts(card, self.decks_remaining())
         self.discards.append(card) # Technichally don't need if not use_csm, but might as well for analysis...
         return card
-    
+
     def csm_recycle(self):
         """Use the CSM to recycle discards back into the shoe."""
         if self.use_csm and self.discards:
@@ -55,4 +67,3 @@ class Shoe:
             insertion_point = random.randint(0, len(self.cards))
             self.cards[insertion_point:insertion_point] = self.discards
             self.discards.clear()
-

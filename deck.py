@@ -23,9 +23,13 @@ class Card:
     @property
     def hilo_value(self) -> int:
         "Returns the Hi-Lo value of a card."
-        if self.value in [2,3,4,5,6]: return 1
-        elif self.value in [10, 11]: return -1
-        return 0
+        if self.rank in ('2','3','4','5','6'):
+            return 1
+        elif self.rank in ('10','J','Q','K','A'):
+            return -1
+        else:  # for '7', '8', '9'
+            return 0
+
 
 class Deck:
     """Represents a deck of cards."""

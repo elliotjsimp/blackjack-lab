@@ -1,5 +1,5 @@
 from shoe import Shoe
-from player import Player, HumanStrategy
+from player import Player, HumanStrategy, BasicStrategy, CardCountingPlayer
 from round import Round
 
 
@@ -16,6 +16,10 @@ class Session:
 
     
     def play_session(self):
+        for player in self.players:
+            if isinstance(player, CardCountingPlayer):
+                player.card_counter = self.shoe.card_counter
+
         while True:
             if not self.players:
                 if not self.interactive: print(f"No strategy made it {self.n_rounds} rounds!")
@@ -58,7 +62,6 @@ class Session:
                     disp_max_g = str(int(max_growth))
                 else:
                     disp_max_g = f"{max_growth:.2f}"
-
 
                 if net_growth.is_integer():
                     disp_net_g = str(int(net_growth))

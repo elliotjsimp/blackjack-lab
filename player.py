@@ -9,6 +9,7 @@ import random
 from manager import Manager
 from deck import Card
 from hand import Hand
+from counter import CardCounter
 from abc import ABC, abstractmethod
 from collections import deque
 import csv
@@ -20,7 +21,7 @@ CHAR_TO_WORD = {
     "H":"hit",
     "S":"stand",
     "D":"double",
-    "Ds":"double",
+    "Ds":"double_if_possible_else_stand", # Double if possible, otherwise stand
     "Y": "yes_split",
     "N": "no_split",
     "Yn": "split_if_double_after_split"
@@ -53,9 +54,8 @@ def dealer_key(card: Card) -> str:
         return card.rank
 
 
-# TODO: Replace hard-coded player.hands_collection[0]
 class Player:
-    def __init__(self, name: str, strategy: Strategy, bankroll: int=10000):
+    def __init__(self, name: str, strategy: Strategy, bankroll: int=50000):
         self.name = name
         self.strategy = strategy
         self.bankroll = bankroll
@@ -107,7 +107,13 @@ class Player:
     def record_cur_hand(self) -> None:
         self.final_hands.append(self.current_hand)
 
+
+class CardCountingPlayer(Player):
+    def __init__(self, name: str, strategy: Strategy, bankroll: int=100000):
+        super().__init__(name, strategy, bankroll)
+        self.card_counter: CardCountingPlayer
     
+
 class Strategy(ABC):
     """Strategy is an abstract base class (inherited by every Player object)."""
     @abstractmethod
@@ -245,13 +251,27 @@ class BasicStrategy(Strategy):
 
         if decision == "double" and not player.can_double():
             return "hit"
+        elif decision == "double_if_possible_else_stand":
+            return "double" if player.can_double() else "stand"
         return decision
 
 
-         
+    # TODO: Make this the best it can be.
     def make_bet(self, player):
-        return max(1, int(player.bankroll * 0.001  // 1)) # Bets 0.1% of bankroll for now
+        tc = player.card_counter.true_count
+        table_min = 10 
 
+        if tc < 1:
+            return table_min # For now.
+        
+        units = 250 # 0.005 * 50k
+
+        if tc > 12:
+            units = 12
+        else:
+            units = tc
+        
+        return max(1, table_min * units)
 
 class Players:
     # ROSTER = [

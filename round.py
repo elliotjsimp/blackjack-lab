@@ -52,8 +52,8 @@ class Round:
             player.hands_collection.append(player.current_hand)
 
         self.dealer_hand = Hand()
-        self.dealer_hand.add_card(self.shoe.deal_card())
-        self.dealer_hand.add_card(self.shoe.deal_card())
+        self.dealer_hand.add_card(self.shoe.deal_card()) # Upcard - count it
+        self.dealer_hand.add_card(self.shoe.deal_card(update_count=False)) # Hole card - don't count it
 
 
     def initial_blackjack_check(self) -> None:
@@ -74,57 +74,8 @@ class Round:
                 player.hands_collection.clear() # Round over for player.
 
     
-    """""
-    # TODO: Fully depreciate usage of this method, in favour of player_turns_with_split
-    def player_turns(self) -> None:
-        All player turns. The "meat" of the game, in my opinion.
-        for player in self.players:
-            # This works because human is always at last index of players/last "seat", therefore table is ready to print.
-            # This is generally prefered by IRL card-counters (if they play at a table with other people, that is).
-            if isinstance(player.strategy, HumanStrategy): self.print_table_moves()
-
-            # TODO: Make bust method for DRY.
-            while True:
-                if player.current_bet > 0:
-                    decision = player.make_decision(self.dealer_upcard()) # Dealer upcard passed as argument
-                    self.decisions[player].append(decision)
-
-                    if decision in ["hit", "h"]:
-                        player.hands_collection[0].add_card(self.shoe.deal_card())
-
-                        if player.hands_collection[0].hand_total() > 21:
-                            self.decisions[player].append("bust")
-
-                            player.bankroll -= player.current_bet
-                            player.current_bet = 0
-                            break
-                    elif decision in ["stand", "s"]:
-                        break
-                    elif decision in ["double", "d"]: # doubling in Blackjack is effectively double bet, then hit.
-                        # NOTE: Valid doubling is handled by each Strategy instance now. Maybe not the best solution...
-                        player.current_bet *= 2
-
-                        if isinstance(player.strategy, HumanStrategy):
-                            print(f"You doubled your bet to ${player.current_bet}...")
-
-                        player.hands_collection[0].add_card(self.shoe.deal_card())
-
-                        if player.hands_collection[0].hand_total() > 21:
-                            self.decisions[player].append("bust")
-
-                            player.bankroll -= player.current_bet
-                            player.current_bet = 0
-                            break
-
-                else:
-                    break   # For players in for loop who have hit Blackjack (push or not (tie with dealer or not))),
-                            # The "dealer" (else break code) forces them to be rational in these cases, and not play.
-                            # We could apend "stand" here, but would be messy in tables/data.
-    """
-
     def player_turns_with_split(self) -> None:
-        """A WIP method to replace the player_turns method. Supports splitting hands."""
-
+        """A method that supports splitting hands."""
         for player in self.players:
             
             # Human player is always at last seat of "table", therefore they can see everything thus far.
@@ -183,7 +134,10 @@ class Round:
                                 player.record_cur_hand()
                                 break
 
-                            continue
+                           # After doubling, you MUST stand
+                            player.per_hand_result[player.current_hand].append("stand")  # Add stand to history
+                            player.record_cur_hand()
+                            break
 
                         case "split":
                             can_split = player.can_split()
@@ -197,7 +151,9 @@ class Round:
                                 new_hand2 = Hand()
                                 new_hand2.bet = player.current_hand.bet
                                 player.bankroll -= player.current_hand.bet
-                                if player.bankroll < 0: raise RuntimeError
+                                if player.bankroll < 0: 
+                                    print(f"ERROR: player bankroll is {player.bankroll}.")
+                                    raise RuntimeError
 
                                 new_hand1.add_card(player.current_hand.cards[0])
                                 new_hand2.add_card(player.current_hand.cards[1])
@@ -238,20 +194,14 @@ class Round:
 
 
     def resolve_bets(self, dealer_total: int) -> None: # --- Resolve bets ---
-        """NOTE: Technichally, we are more like finalizing bankroll adjustments.
-        Semantic difference, but it would be better perhaps if we directly modified
-        Player bankroll at start of round (when bet occurs).
-        Now, we are displaying "new" bankroll in print_bets method, but not actually changing until after round play.
-        Should probably just parody real-world.
-        I guess I just didn't want to subtract, then add back... but doesn't need to be operation-optimized like this."""
-
+        """Note: we are now actually modifying bankrolls in a IRL fashion (subtracting bet first),
+        therefore this method is now actually resolving the bets (before was not). """
         for player in self.players:
             for hand in player.final_hands:
 
                 hand_total = hand.hand_total()
-                hand_result = player.per_hand_result[hand][-1] # Last result for hand. # THIS IS BUGGY LINE.
+                hand_result = player.per_hand_result[hand][-1] # Last result for hand. This isn't such a good line.
 
-              
                 if hand_result in ["stand", "hit"]: # would ever be hit? I don't think so...
                     # Bust logic already handled by this point.
                     if (hand_total > dealer_total) or (dealer_total > 21 and hand_total < 21):
@@ -276,23 +226,25 @@ class Round:
                     print(f"Dealer: {self.dealer_hand.cards}, ({dealer_total})")
 
 
-
     def play_round(self):
         """Handles core round logic. I've tried to provide an ample amount of comments, mainly
         for people who may not know how Blackjack works."""
+
+        # print(f"DEBUG: Decks Remaining: {self.shoe.decks_remaining()}")
 
         remove = self.removal_check()
         if remove: return remove
 
         print(f"\nRound Number {self.round_number}")
 
-
         # --- Take Bets ---
         for player in self.players:
             player.current_hand = Hand()
             player.current_hand.bet = player.make_bet()
             player.bankroll -= player.current_hand.bet # New
-            if player.bankroll < 0: raise RuntimeError
+            if player.bankroll < 0: 
+                print(f"ERROR: player bankroll {player.bankroll}")
+                raise RuntimeError
         
         # Print the bets table.
         self.print_bets()
@@ -310,6 +262,11 @@ class Round:
         self.player_turns_with_split()
 
         # Dealer's turn
+        # Count the dealer's hole card when revealed
+        if len(self.dealer_hand.cards) == 2:
+            hole_card = self.dealer_hand.cards[1]
+            self.shoe.card_counter.update_counts(hole_card, self.shoe.decks_remaining())
+        
         dealer_total = self.dealer_hand.hand_total() # TODO: Why calling twice? Messy. Fix. I guess need to though.
         while dealer_total < 17: # Casino Convention: most dealers stand at 17 (soft or hard).
 
@@ -319,8 +276,21 @@ class Round:
 
         if self.interactive: print(f"\nDealer's full hand: {self.dealer_hand.cards} (Total: {self.dealer_hand.hand_total()})\n")
 
-        # Resolve all player bets (please see docstring for important detail).
+        """ 
+        print(f"\nBEFORE RESOLVE_BETS:")
+        for player in self.players:
+            print(f"{player.name}: ${player.bankroll}")
+            for hand in player.final_hands:
+                print(f"  Hand: {hand.cards}, result: {player.per_hand_result[hand]}")
+        """ 
+    
         self.resolve_bets(dealer_total)
+    
+        """
+        print(f"\nAFTER RESOLVE_BETS:")
+        for player in self.players:
+            print(f"{player.name}: ${player.bankroll}")
+        """
 
         # Recycle shoe if using CSM (usually not, as it is not prefered).
         self.shoe.csm_recycle()
