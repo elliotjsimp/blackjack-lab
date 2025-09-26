@@ -201,7 +201,7 @@ class BasicStrategy(Strategy):
 
         dk = dealer_key(dealer_upcard)
 
-        if player.current_hand.is_pair():
+        if player.can_split():
             pair_str = f"{dealer_key(player.current_hand.cards[0])}{dealer_key(player.current_hand.cards[1])}" # I guess could just do * 2.
             split_char = pair_splitting[pair_str][dk]
             decision_split = CHAR_TO_WORD[split_char]
