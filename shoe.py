@@ -1,4 +1,5 @@
 from deck import Deck, Card
+from counter import CardCounter
 import random
 
 class Shoe:
@@ -8,24 +9,30 @@ class Shoe:
         self.use_csm = use_csm
         self.cards = []
         self.discards = []
+        self.card_counter = CardCounter()
         self.build_shoe()
 
     @property
     def cut_card_position(self):
         return int(52 * self.deck_count * (1 - self.penetration))
 
+    def decks_remaining(self) -> float:
+        return (self.deck_count * 52 - len(self.discards)) / 52
+
     def build_shoe(self):
         # print("Debug: Building Shoe")
         self.cards.clear()
         self.discards.clear()
+        self.card_counter.reset_counts()
+
         for _ in range(self.deck_count):
             self.cards.extend(Deck().cards)
         self.shuffle()
-        
+    
     def shuffle(self):
-        """Shuffle the shoe."""
-        # print("Debug: Shuffling the shoe.")
+        print("Debug: Shuffling the shoe.")
         random.shuffle(self.cards)
+
 
     def deal_card(self) -> Card:
         """Deal a card from the shoe."""
@@ -39,9 +46,13 @@ class Shoe:
         # print(f"Debug: Penetration is {penetration_percent:.2f}%")
 
         card = self.cards.pop()
+
+        # TODO: Don't update count if this is a "hidden" card.
+        # e.g., dealer downcard, 
+        self.card_counter.update_counts(card, self.decks_remaining())
         self.discards.append(card) # Technichally don't need if not use_csm, but might as well for analysis...
         return card
-    
+
     def csm_recycle(self):
         """Use the CSM to recycle discards back into the shoe."""
         if self.use_csm and self.discards:
@@ -55,4 +66,3 @@ class Shoe:
             insertion_point = random.randint(0, len(self.cards))
             self.cards[insertion_point:insertion_point] = self.discards
             self.discards.clear()
-
