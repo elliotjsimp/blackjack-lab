@@ -215,7 +215,7 @@ class BasicStrategy(Strategy):
             print(f"DEBUG: Decision to split: {decision_split} with {player.current_hand.cards} and DK: {dk}")
             print(f"DEBUG: Bankroll: ${player.bankroll}, Cur bet: {player.current_hand.bet}")
             if len(player.hands_collection) > 4:
-                raise RuntimeError # Greater than allowed amount of hands bug... what is going on?
+                raise RuntimeError # Greater than allowed amount of hands bug.
              
             # We allow double after split. Takes away some house advantage (like 0.2% or something).
             if decision_split in ["yes_split", "split_if_double_after_split"]:    
@@ -259,19 +259,14 @@ class BasicStrategy(Strategy):
     # TODO: Make this the best it can be.
     def make_bet(self, player):
         tc = player.card_counter.true_count
-        table_min = 10 
-
-        if tc < 1:
-            return table_min # For now.
-        
-        units = 250 # 0.005 * 50k
+        table_min = 50 
 
         if tc > 12:
             units = 12
         else:
-            units = tc
+            units = max(1, tc)
         
-        return max(1, table_min * units)
+        return min(player.bankroll, table_min * units)
 
 class Players:
     # ROSTER = [
@@ -281,9 +276,3 @@ class Players:
     # ]
 
     ROSTER = []
-
-
-
-
-    
-
