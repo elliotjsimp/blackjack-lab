@@ -1,22 +1,6 @@
 # Blackjack Lab
 
->Work in progress. Take this readme with a grain of salt (for now...)
-
-
-Blackjack Lab is a project designed to provide two core functionalities related to the game of Blackjack:  
-
-
-## Play
-- Play Blackjack sessions with or without additional (simulated) players, against a dealer.  
-- Practice strategies or simply play for testing and experimentation (or for fun, of course).
-
-
-## Simulate
-- Run large-scale simulations of Blackjack sessions, with configurable numbers of players and rounds.  
-- Define and test your own strategies under realistic conditions.
-- Simulate Basic Strategy (proper noun indeed, not a basic strategy).
-- Planned: Simulate Hi-Lo card-counting (builds off of Basic Strategy).
-- Planned: Visualize data to better understand simulation results.  
+>Work in progress. Specifically, I am having trouble finding the right betting scheme to maximize max growth, while minimizing risk of ruin. If you are a Blackjack and/or math person and stumble upon this repo, please let me know how to fix it! I will probably fix it eventually but the opportunity cost is not favourable at this time.
 
 
 ### Notes for Blackjack Nerds:
@@ -25,3 +9,7 @@ Blackjack Lab is a project designed to provide two core functionalities related 
 - Every game pays 3:2 for a Blackjack (natural 21).
 - The above Blackjack conditions are preferable (or even necessary, most notably non-random cards) for card-counters to gain an edge.
 - Optionally, a simulated Continuous Shuffle Machine can be enabled to remove all player advantage. This is a popular method used by casinos to discourage card counters.
+
+
+### Note on implementation:
+I am not thoroughly pleased with my implementation. I did not know how to play Blackjack when I started making this project, and there were more rules than I had realised. This means that over time, the codebase has became somewhat Frankenstein-ish. A good lesson learned for me: plan, plan and then plan some more!
