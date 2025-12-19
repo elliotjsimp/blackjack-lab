@@ -12,4 +12,4 @@
 
 
 ### Note on implementation:
-I am not thoroughly pleased with my implementation. I did not know how to play Blackjack when I started making this project, and there were more rules than I had realised. This means that over time, the codebase has became somewhat Frankenstein-ish. A good lesson learned for me: plan, plan and then plan some more!
+I am not thoroughly pleased with my implementation. I did not know how to play Blackjack when I started making this project (which is pretty funny, I think), and there were more rules than I had realised. This means that over time, the codebase has became somewhat Frankenstein-ish. A good lesson learned for me: plan, plan and then plan some more!
